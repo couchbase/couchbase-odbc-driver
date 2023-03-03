@@ -1,0 +1,115 @@
+get_filename_component (_current_dir_name "${CMAKE_CURRENT_LIST_DIR}" NAME)
+if (CMAKE_FOLDER)
+    set (CMAKE_FOLDER "$CMAKE_FOLDER/${_current_dir_name}")
+else ()
+    set (CMAKE_FOLDER "${_current_dir_name}")
+endif ()
+unset (_current_dir_name)
+
+set(LCB_NO_TESTS ON CACHE BOOL "" FORCE)
+set(LCB_NO_TOOLS ON CACHE BOOL "" FORCE)
+set(LCB_BUILD_DTRACE OFF CACHE BOOL "" FORCE)
+set(LCB_UNINSTALL_TARGET OFF CACHE BOOL "" FORCE)
+set(LCB_BUILD_STATIC 1 CACHE INTERNAL "" FORCE)
+add_subdirectory (libcouchbase)
+
+if (CH_ODBC_ENABLE_SSL AND NOT MSVC)
+    if (CH_ODBC_PREFER_BUNDLED_SSL OR NOT OPENSSL_FOUND)
+        if (NOT OPENSSL_FOUND AND NOT CH_ODBC_PREFER_BUNDLED_SSL)
+            message (WARNING "SSL: unable to find system OpenSSL, falling back to using the bundled variant of SSL library")
+        endif ()
+
+        set (USE_SHARED 0)
+
+        if (XCODE)
+            set (ENABLE_ASM 0 CACHE INTERNAL "")
+        endif ()
+
+        add_subdirectory (ssl)
+
+        # Mimic FindOpenSSL for Poco to pickup.
+        set (OPENSSL_FOUND TRUE)
+        set (OPENSSL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ssl/include")
+        set (OPENSSL_CRYPTO_LIBRARY crypto)
+        set (OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_LIBS})
+        set (OPENSSL_SSL_LIBRARY ssl)
+        set (OPENSSL_SSL_LIBRARIES ${OPENSSL_LIBS})
+        set (OPENSSL_LIBRARIES ${OPENSSL_LIBS})
+    endif ()
+endif ()
+
+if (CH_ODBC_PREFER_BUNDLED_POCO OR NOT Poco_FOUND)
+    if (NOT Poco_FOUND AND NOT CH_ODBC_PREFER_BUNDLED_POCO)
+        message (WARNING "Poco: unable to find system Poco, falling back to using the bundled variant of the library")
+    endif ()
+
+    if (CH_ODBC_ENABLE_SSL AND MSVC)
+        set (ENABLE_NETSSL_WIN ON CACHE INTERNAL "")
+    endif ()
+
+    if (CH_ODBC_THIRD_PARTY_LINK_STATIC)
+        set (POCO_STATIC ON CACHE INTERNAL "")
+    endif ()
+
+    if (CH_ODBC_RUNTIME_LINK_STATIC)
+        set (POCO_MT ON CACHE INTERNAL "")
+    endif ()
+
+    set (CMAKE_MODULE_PATH_bak ${CMAKE_MODULE_PATH})
+    set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH_orig})
+
+    add_subdirectory (poco)
+
+    set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH_bak})
+    unset (CMAKE_MODULE_PATH_bak)
+
+    if (TARGET NetSSL)
+        add_library(Poco::NetSSL ALIAS NetSSL)
+    endif ()
+
+    if (TARGET NetSSLWin)
+        add_library(Poco::NetSSLWin ALIAS NetSSLWin)
+    endif ()
+
+    add_library(Poco::Net ALIAS Net)
+    add_library(Poco::Foundation ALIAS Foundation)
+    add_library(Poco::Util ALIAS Util)
+
+    # Remove pthread from linking poco's Net
+    set_property (TARGET Net PROPERTY INTERFACE_LINK_LIBRARIES "")
+    set_property (TARGET Foundation PROPERTY INTERFACE_LINK_LIBRARIES "")
+endif ()
+
+# Bug in poco https://github.com/pocoproject/poco/pull/2100 found on macos
+if (OPENSSL_FOUND)
+    if (TARGET Crypto)
+        target_include_directories (Crypto INTERFACE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}>)
+    elseif (TARGET Poco::Crypto)
+        target_include_directories (Poco::Crypto INTERFACE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}>)
+    endif ()
+endif()
+
+if (MSVC)
+    if (TARGET Foundation)
+        set_property(TARGET Foundation APPEND PROPERTY INTERFACE_LINK_LIBRARIES Iphlpapi)
+    elseif (TARGET Poco::Foundation)
+        set_property(TARGET Poco::Foundation APPEND PROPERTY INTERFACE_LINK_LIBRARIES Iphlpapi)
+    endif ()
+endif ()
+
+# if (CH_ODBC_PREFER_BUNDLED_FOLLY OR NOT Folly_FOUND)
+#     if (NOT Folly_FOUND AND NOT CH_ODBC_PREFER_BUNDLED_FOLLY)
+#         message (WARNING "Folly: unable to find system Folly, falling back to using the bundled variant of the library")
+#     endif ()
+#
+#    add_subdirectory (folly)
+    set (FOLLY_INLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/folly" CACHE INTERNAL "")
+# endif ()
+
+# Some of the above may define this target.
+if (TARGET uninstall AND CMAKE_FOLDER)
+    set_target_properties (uninstall PROPERTIES FOLDER "${CMAKE_FOLDER}")
+endif ()
+
+# Some of the above may set a cache entry that will interfere with later reconfigurations.
+unset (ODBC_CONFIG CACHE)

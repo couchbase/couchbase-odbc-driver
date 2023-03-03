@@ -1,0 +1,12 @@
+/build
+/build_*
+/build-*
+
+.vs/
+.vscode/
+
+CMakeFiles/
+CMakeCache.txt
+
+__pycache__/
+*.py[cod]

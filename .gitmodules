@@ -1,0 +1,15 @@
+[submodule "contrib/poco"]
+	path = contrib/poco
+	url = https://github.com/ClickHouse-Extras/poco.git
+    branch = clickhouse-odbc
+[submodule "contrib/ssl"]
+	path = contrib/ssl
+	url = https://github.com/ClickHouse-Extras/ssl.git
+    branch = master
+[submodule "contrib/folly"]
+	path = contrib/folly
+	url = https://github.com/facebook/folly.git
+    branch = master
+[submodule "contrib/libcouchbase"]
+	path = contrib/libcouchbase
+	url = https://github.com/couchbase/libcouchbase.git
