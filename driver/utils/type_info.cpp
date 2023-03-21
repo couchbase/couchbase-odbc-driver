@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 const std::map<std::string, TypeInfo> types_g = {
-    {"UInt8", TypeInfo {"TINYINT", true, SQL_TINYINT, 3, 1}},
+    {"UInt8", TypeInfo {"BIT", true, SQL_BIT, 3, 1}},
     {"UInt16", TypeInfo {"SMALLINT", true, SQL_SMALLINT, 5, 2}},
     {"UInt32", TypeInfo {"INT", true, SQL_BIGINT /* was SQL_INTEGER */, 10, 4}}, // With perl, python ODBC drivers INT is uint32 and it cant store values bigger than 2147483647: 2147483648 -> -2147483648 4294967295 -> -1
     {"UInt32", TypeInfo {"INT", true, SQL_INTEGER, 10, 4}},
@@ -30,6 +30,19 @@ const std::map<std::string, TypeInfo> types_g = {
     {"LowCardinality(String)", TypeInfo {"TEXT", true, SQL_VARCHAR, TypeInfo::string_max_size, TypeInfo::string_max_size}},
     {"LowCardinality(FixedString)", TypeInfo {"TEXT", true, SQL_VARCHAR, TypeInfo::string_max_size, TypeInfo::string_max_size}}
 };
+
+const std::map<std::string, std::string> cb_to_ch_types_g = {
+    {"string?", "String"},
+    {"double?", "Float64"},
+    {"int64?", "Int64"},
+    {"boolean?", "UInt8"},
+    {"string", "String"},
+    {"double", "Float64"},
+    {"int64", "Int64"},
+    {"boolean", "UInt8"},
+};
+
+const std::map<std::string, uint8_t> types_id_g = {{"Float64", 12}};
 
 DataSourceTypeId convertUnparametrizedTypeNameToTypeId(const std::string & type_name) {
          if (Poco::icompare(type_name, "Date") == 0)        return DataSourceTypeId::Date;

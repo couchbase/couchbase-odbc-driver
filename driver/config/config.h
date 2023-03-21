@@ -22,12 +22,15 @@ struct ConnInfo {
     std::string server;
     std::string port;
     std::string timeout;
+    std::string login_timeout;
+    std::string query_timeout;
     std::string verify_connection_early;
     std::string sslmode;
     std::string privateKeyFile;
     std::string certificateFile;
     std::string caLocation;
     std::string database;
+    std::string sid;
     std::string huge_int_as_string;
     std::string stringmaxlength;
     std::string driverlog;

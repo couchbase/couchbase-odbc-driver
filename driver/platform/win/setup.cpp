@@ -65,6 +65,9 @@ inline BOOL copyAttributes(ConnInfo * ci, LPCTSTR attribute, LPCTSTR value) {
     COPY_ATTR_IF(timeout,    INI_TIMEOUT);
     COPY_ATTR_IF(sslmode,    INI_SSLMODE);
     COPY_ATTR_IF(database,   INI_DATABASE);
+    COPY_ATTR_IF(sid, INI_SOURCE_ID);
+    COPY_ATTR_IF(login_timeout, INI_LOGIN_TIMEOUT);
+    COPY_ATTR_IF(query_timeout, INI_QUERY_TIMEOUT);
 
 #undef COPY_ATTR_IF
 

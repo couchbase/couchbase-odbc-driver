@@ -7,6 +7,8 @@
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/URI.h>
 
+#include <libcouchbase/couchbase.h>
+
 #include <memory>
 #include <mutex>
 
@@ -14,9 +16,7 @@ class DescriptorRecord;
 class Descriptor;
 class Statement;
 
-class Connection
-    : public Child<Environment, Connection>
-{
+class Connection : public Child<Environment, Connection> {
 private:
     using ChildType = Child<Environment, Connection>;
     const std::string session_id;
@@ -24,6 +24,11 @@ private:
 
 public: // Configuration fields.
     std::string dsn;
+    std::string sid;
+    std::uint32_t login_timeout;
+    bool is_set_login_timeout;
+    std::uint32_t query_timeout;
+    bool isCB;
     std::string proto;
     std::string username;
     std::string password;
@@ -49,6 +54,8 @@ public:
     int retry_count = 3;
     int redirect_limit = 10;
 
+    lcb_INSTANCE * lcb_instance;
+
 public:
     explicit Connection(Environment & environment);
 
@@ -58,6 +65,7 @@ public:
     Poco::URI getUri() const;
 
     void connect(const std::string & connection_string);
+    void cb_check(lcb_STATUS err, const char * msg);
 
     // Return a Base64 encoded string of "user:password".
     std::string buildCredentialsString() const;

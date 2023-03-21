@@ -54,6 +54,9 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
     GET_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY, INI_VERIFY_CONNECTION_EARLY_DEFAULT);
     GET_CONFIG(sslmode,         INI_SSLMODE,         INI_SSLMODE_DEFAULT);
     GET_CONFIG(database,        INI_DATABASE,        INI_DATABASE_DEFAULT);
+    GET_CONFIG(sid,        INI_SOURCE_ID,        INI_SOURCE_ID_DEFAULT);
+    GET_CONFIG(login_timeout, INI_LOGIN_TIMEOUT, INI_LOGIN_TIMEOUT_DEFAULT);
+    GET_CONFIG(query_timeout, INI_QUERY_TIMEOUT, INI_QUERY_TIMEOUT_DEFAULT);
     GET_CONFIG(huge_int_as_string, INI_HUGE_INT_AS_STRING, INI_HUGE_INT_AS_STRING_DEFAULT);
     GET_CONFIG(stringmaxlength, INI_STRINGMAXLENGTH, INI_STRINGMAXLENGTH_DEFAULT);
     GET_CONFIG(driverlog,       INI_DRIVERLOG,       INI_DRIVERLOG_DEFAULT);
@@ -95,6 +98,9 @@ void writeDSNinfo(const ConnInfo * ci) {
     WRITE_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY);
     WRITE_CONFIG(sslmode,         INI_SSLMODE);
     WRITE_CONFIG(database,        INI_DATABASE);
+    WRITE_CONFIG(sid,        INI_SOURCE_ID);
+    WRITE_CONFIG(login_timeout, INI_LOGIN_TIMEOUT);
+    WRITE_CONFIG(query_timeout, INI_QUERY_TIMEOUT);
     WRITE_CONFIG(huge_int_as_string, INI_HUGE_INT_AS_STRING);
     WRITE_CONFIG(stringmaxlength, INI_STRINGMAXLENGTH);
     WRITE_CONFIG(driverlog,       INI_DRIVERLOG);
@@ -316,35 +322,34 @@ key_value_map_t readDSNInfo(const std::string & dsn_utf8) {
 
 // BEGIN WORKAROUND: some versions of UnixODBC instead of returning all keys return only the first one,
 // so here we make sure that all known keys will aslo be tried.
-    for (const auto & known_key :
-        {
-            INI_DRIVER,
-            INI_FILEDSN,
-            INI_SAVEFILE,
-            INI_DSN,
-            INI_DESC,
-            INI_URL,
-            INI_UID,
-            INI_USERNAME,
-            INI_PWD,
-            INI_PASSWORD,
-            INI_PROTO,
-            INI_SERVER,
-            INI_HOST,
-            INI_PORT,
-            INI_TIMEOUT,
-            INI_VERIFY_CONNECTION_EARLY,
-            INI_SSLMODE,
-            INI_PRIVATEKEYFILE,
-            INI_CERTIFICATEFILE,
-            INI_CALOCATION,
-            INI_PATH,
-            INI_DATABASE,
-            INI_STRINGMAXLENGTH,
-            INI_DRIVERLOG,
-            INI_DRIVERLOGFILE
-        }
-    ) {
+    for (const auto & known_key : {INI_DRIVER,
+             INI_FILEDSN,
+             INI_SAVEFILE,
+             INI_DSN,
+             INI_DESC,
+             INI_URL,
+             INI_UID,
+             INI_USERNAME,
+             INI_PWD,
+             INI_PASSWORD,
+             INI_PROTO,
+             INI_SERVER,
+             INI_HOST,
+             INI_PORT,
+             INI_TIMEOUT,
+             INI_VERIFY_CONNECTION_EARLY,
+             INI_SSLMODE,
+             INI_PRIVATEKEYFILE,
+             INI_CERTIFICATEFILE,
+             INI_CALOCATION,
+             INI_PATH,
+             INI_DATABASE,
+             INI_SOURCE_ID,
+             INI_LOGIN_TIMEOUT,
+             INI_QUERY_TIMEOUT,
+             INI_STRINGMAXLENGTH,
+             INI_DRIVERLOG,
+             INI_DRIVERLOGFILE}) {
         if (
             std::find_if(
                 keys.begin(),
@@ -387,6 +392,7 @@ key_value_map_t readDSNInfo(const std::string & dsn_utf8) {
 
         if (value != default_value)
             fields[key_utf8] = toUTF8(value);
+
     }
 
     return fields;

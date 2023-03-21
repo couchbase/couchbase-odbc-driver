@@ -8,8 +8,9 @@
 
 #include <Poco/Net/HTTPClientSession.h>
 
-#include <type_traits>
 #include <new>
+#include <ostream>
+#include <type_traits>
 
 namespace impl {
 
@@ -167,6 +168,7 @@ SQLRETURN SetConnectAttr(
                     connection.session->setTimeout(Poco::Timespan(connection.connection_timeout, 0),
                         Poco::Timespan(connection.timeout, 0),
                         Poco::Timespan(connection.timeout, 0));
+
                 return SQL_SUCCESS;
             }
 
@@ -211,7 +213,20 @@ SQLRETURN SetConnectAttr(
             case SQL_ATTR_AUTO_IPD:
             case SQL_ATTR_AUTOCOMMIT:
             case SQL_ATTR_CONNECTION_DEAD:
-            case SQL_ATTR_LOGIN_TIMEOUT: // We have no special login procedure - cant set login timeout separately
+            case SQL_ATTR_LOGIN_TIMEOUT: {
+                auto login_timeout = static_cast<SQLUSMALLINT>(reinterpret_cast<intptr_t>(value));
+                LOG("Set login timeout: " << login_timeout);
+
+                connection.login_timeout = login_timeout;
+                connection.is_set_login_timeout = true;
+                if (connection.lcb_instance != nullptr && connection.isCB) {
+                    std::ostringstream oss;
+                    oss << (connection.login_timeout * 1000000);
+                    connection.cb_check(
+                        lcb_cntl_string(connection.lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
+                }
+                return SQL_SUCCESS;
+            }
             case SQL_ATTR_ODBC_CURSORS:
             case SQL_ATTR_PACKET_SIZE:
             case SQL_ATTR_QUIET_MODE:
@@ -219,7 +234,6 @@ SQLRETURN SetConnectAttr(
             case SQL_ATTR_TRANSLATE_OPTION:
             case SQL_ATTR_TXN_ISOLATION:
                 return SQL_SUCCESS;
-
             default:
                 LOG("SetConnectAttr: Unsupported attribute " << attribute);
                 //throw SqlException("Unsupported connection attribute.", "HY092");
@@ -245,7 +259,7 @@ SQLRETURN GetConnectAttr(
         switch (attribute) {
             CASE_NUM(SQL_ATTR_CONNECTION_DEAD, SQLUINTEGER, SQL_CD_FALSE);
             CASE_FALLTHROUGH(SQL_ATTR_CONNECTION_TIMEOUT);
-            CASE_NUM(SQL_ATTR_LOGIN_TIMEOUT, SQLUSMALLINT, connection.session ? connection.session->getTimeout().seconds() : connection.timeout);
+            CASE_NUM(SQL_ATTR_LOGIN_TIMEOUT, SQLUSMALLINT, connection.login_timeout);
             CASE_NUM(SQL_ATTR_TXN_ISOLATION, SQLINTEGER, SQL_TXN_SERIALIZABLE); // mssql linked server
             CASE_NUM(SQL_ATTR_AUTOCOMMIT, SQLINTEGER, SQL_AUTOCOMMIT_ON);
 
@@ -411,13 +425,26 @@ SQLRETURN SetStmtAttr(
             case SQL_ATTR_KEYSET_SIZE:
             case SQL_ATTR_MAX_LENGTH:
             case SQL_ATTR_MAX_ROWS:
-            case SQL_ATTR_QUERY_TIMEOUT:
+            case SQL_ATTR_QUERY_TIMEOUT: {
+                auto query_timeout = static_cast<SQLUSMALLINT>(reinterpret_cast<intptr_t>(value));
+                LOG("Set query timeout: " << query_timeout);
+
+                statement.stmt_query_timeout = query_timeout;
+                statement.is_set_stmt_query_timeout = true;
+                auto & connection = statement.getParent();
+                if (connection.lcb_instance != nullptr && connection.isCB) {
+                    std::ostringstream oss;
+                    oss << (statement.stmt_query_timeout) * 1000000;
+                    connection.cb_check(
+                        lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics_timeout");
+                }
+                return SQL_SUCCESS;
+            }
             case SQL_ATTR_RETRIEVE_DATA:
             case SQL_ATTR_ROW_NUMBER:
             case SQL_ATTR_SIMULATE_CURSOR:
             case SQL_ATTR_USE_BOOKMARKS:
                 return SQL_SUCCESS;
-
             default:
                 LOG("SetStmtAttr: Unsupported attribute " << attribute);
                 //throw std::runtime_error("Unsupported statement attribute.");
@@ -500,9 +527,11 @@ SQLRETURN GetStmtAttr(
                 return fillOutputPOD<SQLULEN>(result_set.getCurrentRowPosition(), out_value, out_value_length);
             }
 
-            CASE_NUM(SQL_ATTR_QUERY_TIMEOUT, SQLULEN, 0);
-            CASE_NUM(SQL_ATTR_RETRIEVE_DATA, SQLULEN, SQL_RD_ON);
-            CASE_NUM(SQL_ATTR_USE_BOOKMARKS, SQLULEN, SQL_UB_OFF);
+                CASE_NUM(SQL_ATTR_QUERY_TIMEOUT,
+                    SQLULEN,
+                    statement.stmt_query_timeout ? statement.stmt_query_timeout : statement.getParent().query_timeout);
+                CASE_NUM(SQL_ATTR_RETRIEVE_DATA, SQLULEN, SQL_RD_ON);
+                CASE_NUM(SQL_ATTR_USE_BOOKMARKS, SQLULEN, SQL_UB_OFF);
 
             case SQL_ATTR_FETCH_BOOKMARK_PTR:
             case SQL_ATTR_KEYSET_SIZE:

@@ -56,6 +56,7 @@ add_library (${libname}-impl STATIC
     utils/type_info.cpp
     utils/unicode_converter.cpp
     utils/conversion_context.cpp
+    utils/ieee_754_converter.cpp
 
     config/config.cpp
 
@@ -63,12 +64,14 @@ add_library (${libname}-impl STATIC
     escaping/lexer.cpp
 
     format/ODBCDriver2.cpp
+    format/CBAS.cpp
     format/RowBinaryWithNamesAndTypes.cpp
 
     api/impl/impl.cpp
 
     attributes.cpp
     connection.cpp
+    cJSON.c
     descriptor.cpp
     diagnostics.cpp
     driver.cpp
@@ -95,6 +98,7 @@ add_library (${libname}-impl STATIC
     utils/conversion_icu.h
     utils/type_parser.h
     utils/type_info.h
+    utils/ieee_754_converter.h
 
     config/config.h
     config/ini_defines.h
@@ -107,10 +111,12 @@ add_library (${libname}-impl STATIC
     api/impl/impl.h
 
     format/ODBCDriver2.h
+    format/CBAS.h
     format/RowBinaryWithNamesAndTypes.h
 
     attributes.h
     connection.h
+    cJSON.h
     descriptor.h
     diagnostics.h
     driver.h

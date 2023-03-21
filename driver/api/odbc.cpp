@@ -15,6 +15,8 @@
 #include <Poco/NumberFormatter.h>
 #include <Poco/Timezone.h>
 
+#include <libcouchbase/couchbase.h>
+
 #include <iostream>
 #include <locale>
 #include <sstream>
@@ -784,7 +786,11 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLMoreResults)(HSTMT statement_handle) {
 SQLRETURN SQL_API EXPORTED_FUNCTION(SQLDisconnect)(HDBC connection_handle) {
     LOG(__FUNCTION__);
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_DBC, connection_handle, [&](Connection & connection) {
-        connection.session->reset();
+        if (connection.isCB) {
+            lcb_destroy(connection.lcb_instance);
+        } else {
+            connection.session->reset();
+        }
         return SQL_SUCCESS;
     });
 }

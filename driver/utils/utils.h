@@ -229,6 +229,11 @@ inline auto escapeForSQL(const std::string & literal) {
     return res;
 }
 
+// From JDBC
+inline char customHex(int i) {
+    return (char)(i + (i < 10 ? '0' : ('A' - 10)));
+}
+
 #define CASE_FALLTHROUGH(NAME) \
     case NAME:                 \
         if (!name)             \

@@ -1,4 +1,5 @@
 #include "driver/result_set.h"
+#include "driver/format/CBAS.h"
 #include "driver/format/ODBCDriver2.h"
 #include "driver/format/RowBinaryWithNamesAndTypes.h"
 
@@ -323,7 +324,11 @@ std::unique_ptr<ResultMutator> ResultReader::releaseMutator() {
     return std::move(result_mutator);
 }
 
-std::unique_ptr<ResultReader> make_result_reader(const std::string & format, const std::string & timezone, std::istream & raw_stream, std::unique_ptr<ResultMutator> && mutator) {
+std::unique_ptr<ResultReader> make_result_reader(const std::string & format,
+    const std::string & timezone,
+    std::istream & raw_stream,
+    std::unique_ptr<ResultMutator> && mutator,
+    CallbackCookie & cbCookie) {
     if (format == "ODBCDriver2") {
         return std::make_unique<ODBCDriver2ResultReader>(timezone, raw_stream, std::move(mutator));
     }
@@ -332,6 +337,8 @@ std::unique_ptr<ResultReader> make_result_reader(const std::string & format, con
             throw std::runtime_error("'" + format + "' format is supported only on little-endian platforms");
 
         return std::make_unique<RowBinaryWithNamesAndTypesResultReader>(timezone, raw_stream, std::move(mutator));
+    } else if (format == "CBAS") {
+        return std::make_unique<CBASResultReader>(timezone, raw_stream, std::move(mutator), cbCookie);
     }
 
     throw std::runtime_error("'" + format + "' format is not supported");

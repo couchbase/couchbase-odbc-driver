@@ -11,10 +11,17 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <sstream>
 #include <variant>
 #include <vector>
 
 extern const std::string::size_type initial_string_capacity_g;
+
+class CallbackCookie {
+public:
+    std::stringstream queryResultStrm;
+    std::string queryMeta;
+};
 
 class ColumnInfo {
 public:
@@ -153,7 +160,11 @@ protected:
     std::unique_ptr<ResultSet> result_set;
 };
 
-std::unique_ptr<ResultReader> make_result_reader(const std::string & format, const std::string & timezone, std::istream & raw_stream, std::unique_ptr<ResultMutator> && mutator);
+std::unique_ptr<ResultReader> make_result_reader(const std::string & format,
+    const std::string & timezone,
+    std::istream & raw_stream,
+    std::unique_ptr<ResultMutator> && mutator,
+    CallbackCookie & cbCookie);
 
 template <typename ConversionContext>
 SQLRETURN Field::extract(BindingInfo & binding_info, ConversionContext && context) const {
@@ -169,6 +180,7 @@ SQLRETURN Field::extract(BindingInfo & binding_info, ConversionContext && contex
 
 template <typename ConversionContext>
 SQLRETURN Row::extractField(std::size_t column_idx, BindingInfo & binding_info, ConversionContext && context) const {
+
     if (column_idx >= fields.size())
         throw SqlException("Invalid descriptor index", "07009");
 

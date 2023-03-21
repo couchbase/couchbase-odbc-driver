@@ -1,14 +1,18 @@
-#include "driver/utils/utils.h"
+#include <string.h> /* strlen */
+
+#include "driver/cJSON.h"
 #include "driver/config/ini_defines.h"
 #include "driver/connection.h"
 #include "driver/descriptor.h"
 #include "driver/statement.h"
+#include "driver/utils/utils.h"
 
 #include <Poco/Base64Encoder.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/NumberParser.h> // TODO: switch to std
 #include <Poco/URI.h>
 #include <random>
+
 
 #if !defined(WORKAROUND_DISABLE_SSL)
 #    include <Poco/Net/AcceptCertificateHandler.h>
@@ -124,6 +128,13 @@ Poco::URI Connection::getUri() const {
     return uri;
 }
 
+
+void Connection::cb_check(lcb_STATUS err, const char * msg) {
+    if (err != LCB_SUCCESS) {
+        fprintf(stdout, "[\x1b[31mERROR\x1b[0m] %s: %s\n", msg, lcb_strerror_short(err));
+    }
+}
+
 void Connection::connect(const std::string & connection_string) {
     if (session && session->connected())
         throw SqlException("Connection name in use", "08002");
@@ -181,36 +192,84 @@ void Connection::connect(const std::string & connection_string) {
     resetConfiguration();
     setConfiguration(cs_fields, dsn_fields);
 
-    LOG("Creating session with " << proto << "://" << server << ":" << port);
+    LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << database);
 
+    if (!isCB) {
 #if !defined(WORKAROUND_DISABLE_SSL)
-    const auto is_ssl = (Poco::UTF8::icompare(proto, "https") == 0);
-    if (is_ssl) {
-        const auto ssl_strict = (Poco::UTF8::icompare(sslmode, "allow") != 0);
-        std::call_once(ssl_init_once, SSLInit, ssl_strict, privateKeyFile, certificateFile, caLocation);
-    }
+        const auto is_ssl = (Poco::UTF8::icompare(proto, "https") == 0);
+        if (is_ssl) {
+            const auto ssl_strict = (Poco::UTF8::icompare(sslmode, "allow") != 0);
+            std::call_once(ssl_init_once, SSLInit, ssl_strict, privateKeyFile, certificateFile, caLocation);
+        }
 #endif
 
-    session = (
+        session = (
 #if !defined(WORKAROUND_DISABLE_SSL)
-        is_ssl ? std::make_unique<Poco::Net::HTTPSClientSession>() :
+            is_ssl ? std::make_unique<Poco::Net::HTTPSClientSession>() :
 #endif
-        std::make_unique<Poco::Net::HTTPClientSession>()
-    );
+                   std::make_unique<Poco::Net::HTTPClientSession>());
 
-    session->setHost(server);
-    session->setPort(port);
-    session->setKeepAlive(true);
-    session->setTimeout(Poco::Timespan(connection_timeout, 0), Poco::Timespan(timeout, 0), Poco::Timespan(timeout, 0));
-    session->setKeepAliveTimeout(Poco::Timespan(86400, 0));
+        session->setHost(server);
+        session->setPort(port);
+        session->setKeepAlive(true);
+        session->setTimeout(Poco::Timespan(connection_timeout, 0), Poco::Timespan(timeout, 0), Poco::Timespan(timeout, 0));
+        session->setKeepAliveTimeout(Poco::Timespan(86400, 0));
 
-    if (verify_connection_early) {
-        verifyConnection();
+        if (verify_connection_early) {
+            verifyConnection();
+        }
+    } else {
+        // conn_str format "couchbase://localhost:port=proto";
+        // example: "couchbase://localhost:9000=http";
+
+        const char * cb_username = username.c_str();
+        const char * cb_password = password.c_str();
+        char conn_str[1024];
+
+        std::string bucketName;
+        {
+            size_t found = database.find('`', 1);
+            if (found != std::string::npos) {
+                bucketName = database.substr(1, found - 1);
+            }
+        }
+
+
+        const std::string EMPTY_STRING = "";
+        if (port != 0 && proto != EMPTY_STRING) {
+            if (sprintf(conn_str, "couchbase://%s:%hu=%s/%s", server.c_str(), port, proto.c_str(), bucketName.c_str()) >= 1024) {
+                std::cout << "Insufficient conn_str buffer space\n";
+            }
+        } else if (port == 0 && proto == EMPTY_STRING) {
+            if (sprintf(conn_str, "couchbase://%s/%s", server.c_str(), bucketName.c_str()) >= 1024) {
+                std::cout << "Insufficient conn_str buffer space\n";
+            }
+        } else {
+            std::cout << "Invalid Config, Either supply both port and proto or none\n";
+        }
+
+        lcb_CREATEOPTS * lcb_create_options = NULL;
+
+        lcb_createopts_create(&lcb_create_options, LCB_TYPE_BUCKET);
+        lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
+        lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
+
+        cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
+        lcb_createopts_destroy(lcb_create_options);
+
+        std::ostringstream oss;
+        oss << login_timeout * 1000000;
+        cb_check(lcb_cntl_string(lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
+
+        cb_check(lcb_connect(lcb_instance), "schedule connection");
+        lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
+        cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
     }
 }
 
 void Connection::resetConfiguration() {
     dsn.clear();
+    sid.clear();
     url.clear();
     proto.clear();
     username.clear();
@@ -219,6 +278,7 @@ void Connection::resetConfiguration() {
     port = 0;
     connection_timeout = 0;
     timeout = 0;
+    query_timeout = 0;
     sslmode.clear();
     privateKeyFile.clear();
     certificateFile.clear();
@@ -366,15 +426,37 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             if (valid_value) {
                 database = value;
             }
-        }
-        else if (Poco::UTF8::icompare(key, INI_HUGE_INT_AS_STRING) == 0) {
+        } else if (Poco::UTF8::icompare(key, INI_SOURCE_ID) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                sid = value;
+            }
+        } else if (Poco::UTF8::icompare(key, INI_LOGIN_TIMEOUT) == 0) {
+            recognized_key = true;
+            unsigned int typed_value = 0;
+            valid_value = (value.empty()
+                || (Poco::NumberParser::tryParseUnsigned(value, typed_value)
+                    && typed_value <= std::numeric_limits<decltype(login_timeout)>::max()));
+            if (valid_value) {
+                login_timeout = typed_value;
+            }
+        } else if (Poco::UTF8::icompare(key, INI_QUERY_TIMEOUT) == 0) {
+            recognized_key = true;
+            unsigned int typed_value = 0;
+            valid_value = (value.empty()
+                || (Poco::NumberParser::tryParseUnsigned(value, typed_value)
+                    && typed_value <= std::numeric_limits<decltype(query_timeout)>::max()));
+            if (valid_value) {
+                query_timeout = typed_value;
+            }
+        } else if (Poco::UTF8::icompare(key, INI_HUGE_INT_AS_STRING) == 0) {
             recognized_key = true;
             valid_value = (value.empty() || isYesOrNo(value));
             if (valid_value) {
                 huge_int_as_string = isYes(value);
             }
-        }
-        else if (Poco::UTF8::icompare(key, INI_STRINGMAXLENGTH) == 0) {
+        } else if (Poco::UTF8::icompare(key, INI_STRINGMAXLENGTH) == 0) {
             recognized_key = true;
             unsigned int typed_value = 0;
             valid_value = (value.empty() || (
@@ -385,15 +467,13 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             if (valid_value) {
                 stringmaxlength = typed_value;
             }
-        }
-        else if (Poco::UTF8::icompare(key, INI_DRIVERLOGFILE) == 0) {
+        } else if (Poco::UTF8::icompare(key, INI_DRIVERLOGFILE) == 0) {
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
                 getDriver().setAttr(CH_SQL_ATTR_DRIVERLOGFILE, value);
             }
-        }
-        else if (Poco::UTF8::icompare(key, INI_DRIVERLOG) == 0) {
+        } else if (Poco::UTF8::icompare(key, INI_DRIVERLOG) == 0) {
             recognized_key = true;
             valid_value = (value.empty() || isYesOrNo(value));
             if (valid_value) {
@@ -450,6 +530,12 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     }
 
     // Deduce and set all the remaining attributes that are still carrying the default/unintialized values. (This will overwrite only some of the defaults.)
+    if (sid.empty()) {
+        sid = "cb";
+        isCB = true;
+    } else {
+        isCB = (sid == "cb");
+    }
 
     if (dsn.empty())
         dsn = INI_DSN_DEFAULT;
@@ -497,10 +583,12 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     }
 
     if (proto.empty()) {
-        if (!sslmode.empty() || port == 443 || port == 8443)
-            proto = "https";
-        else
-            proto = "http";
+        if (!isCB) {
+            if (!sslmode.empty() || port == 443 || port == 8443)
+                proto = "https";
+            else
+                proto = "http";
+        }
     }
 
     if (username.empty())
@@ -509,14 +597,30 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     if (server.empty())
         server = "localhost";
 
-    if (port == 0)
-        port = (Poco::UTF8::icompare(proto, "https") == 0 ? 8443 : 8123);
+    if (port == 0) {
+        if (!isCB) {
+            port = (Poco::UTF8::icompare(proto, "https") == 0 ? 8443 : 8123);
+        }
+    }
 
-    if (timeout == 0)
-        timeout = 30;
+    if (timeout == 0) {
+        if (!isCB)
+            timeout = 30;
+        // CB doesn't have a notion of timeout and connection_timeout
+        // We have LoginTimeout and QueryTimeout
+    }
 
     if (connection_timeout == 0)
         connection_timeout = timeout;
+
+    // ZeroValue != UnknownValue
+    if (dsn_fields.find(INI_LOGIN_TIMEOUT) == dsn_fields.end() && cs_fields.find(INI_LOGIN_TIMEOUT) == cs_fields.end()
+        && !is_set_login_timeout) {
+        login_timeout = 5; // = LCB_DEFAULT_CONFIGURATION_TIMEOUT
+    }
+    if (dsn_fields.find(INI_QUERY_TIMEOUT) == dsn_fields.end() && cs_fields.find(INI_QUERY_TIMEOUT) == cs_fields.end()) {
+        query_timeout = 75; // = LCB_DEFAULT_ANALYTICS_TIMEOUT
+    }
 
     if (path.empty())
         path = "query";

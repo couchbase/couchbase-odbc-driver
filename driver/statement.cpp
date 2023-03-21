@@ -1,8 +1,9 @@
+#include "driver/statement.h"
+#include "driver/cJSON.h"
+#include "driver/escaping/escape_sequences.h"
+#include "driver/escaping/lexer.h"
 #include "driver/platform/platform.h"
 #include "driver/utils/utils.h"
-#include "driver/escaping/lexer.h"
-#include "driver/escaping/escape_sequences.h"
-#include "driver/statement.h"
 
 #include <Poco/Exception.h>
 #include <Poco/Net/HTTPClientSession.h>
@@ -14,6 +15,7 @@
 
 #include <cctype>
 #include <cstdio>
+#include <sstream>
 
 Statement::Statement(Connection & connection)
     : ChildType(connection)
@@ -76,7 +78,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
 
     auto & connection = getParent();
 
-    if (connection.session && response && in)
+    if (!connection.isCB && connection.session && response && in)
         if (in->fail() || !in->eof())
             connection.session->reset();
 
@@ -84,13 +86,13 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
 
     const auto param_bindings = getParamsBindingInfo(next_param_set_idx);
 
+    cbas_params_args.clear();
     for (std::size_t i = 0; i < parameters.size(); ++i) {
         std::string value;
 
-        if (param_bindings.size() <= i) {
+        if (param_bindings.size() <= i) { // not enough parameters are bounded
             value = "\\N";
-        }
-        else {
+        } else {
             const auto & binding_info = param_bindings[i];
 
             if (!isInputParam(binding_info.io_type) || isStreamParam(binding_info.io_type))
@@ -100,6 +102,48 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
                 value = "\\N";
             else
                 readReadyDataTo(binding_info, value);
+        }
+
+        if (getParent().isCB) {
+            switch (param_bindings[i].sql_type) {
+                case SQL_CHAR:
+                case SQL_WCHAR:
+                case SQL_VARCHAR:
+                case SQL_WVARCHAR:
+                case SQL_LONGVARCHAR:
+                case SQL_WLONGVARCHAR: {
+                    std::ostringstream oss;
+                    oss << "\"";
+                    oss << LOSSLESS_ADM_DELIMETER << value << "\"";
+                    cbas_params_args.emplace_back(oss.str());
+                    break;
+                }
+                case SQL_INTEGER: {
+                    cbas_params_args.emplace_back(value);
+                    break;
+                }
+                case SQL_DOUBLE: {
+                    double doubleVal = *reinterpret_cast<double *>(param_bindings[i].value);
+                    std::ostringstream oss;
+                    oss << "\"";
+                    auto types_id_it = types_id_g.find("Float64");
+                    if (types_id_it != types_id_g.end()) {
+                        uint64_t doubleTypeTag = types_id_it->second;
+                        oss << customHex((doubleTypeTag >> 4) & 0x0f);
+                        oss << customHex(doubleTypeTag & 0x0f);
+                    }
+                    oss << LOSSLESS_ADM_DELIMETER << ieee_double_to_ull(doubleVal) << "\"";
+                    cbas_params_args.emplace_back(oss.str());
+                    break;
+                }
+                case SQL_BIT: {
+                    SQLCHAR boolVal = *reinterpret_cast<SQLCHAR *>(param_bindings[i].value);
+                    std::string boolArgVal = boolVal ? "true" : "false";
+                    cbas_params_args.emplace_back(boolArgVal);
+                }
+                default:
+                    break;
+            }
         }
 
         const auto param_name = getParamFinalName(i);
@@ -113,66 +157,110 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
     if (param_set_processed_ptr)
         *param_set_processed_ptr = next_param_set_idx;
 
-    Poco::Net::HTTPRequest request;
-    request.setMethod(Poco::Net::HTTPRequest::HTTP_POST);
-    request.setVersion(Poco::Net::HTTPRequest::HTTP_1_1);
-    request.setKeepAlive(true);
-    request.setChunkedTransferEncoding(true);
-    request.setCredentials("Basic", connection.buildCredentialsString());
-    request.setHost(uri.getHost());
-    request.setURI(uri.getPathEtc());
-    request.set("User-Agent", connection.buildUserAgentString());
 
-    LOG(request.getMethod() << " " << request.getHost() << request.getURI() << " body=" << prepared_query
-                            << " UA=" << request.get("User-Agent"));
+    if (!connection.isCB) {
+        Poco::Net::HTTPRequest request;
+        request.setMethod(Poco::Net::HTTPRequest::HTTP_POST);
+        request.setVersion(Poco::Net::HTTPRequest::HTTP_1_1);
+        request.setKeepAlive(true);
+        request.setChunkedTransferEncoding(true);
+        request.setCredentials("Basic", connection.buildCredentialsString());
+        request.setHost(uri.getHost());
+        request.setURI(uri.getPathEtc());
+        request.set("User-Agent", connection.buildUserAgentString());
 
-    int redirect_count = 0;
-    // Send request to server with finite count of retries.
-    for (int i = 1;; ++i) {
-        try {
-            for (; redirect_count < connection.redirect_limit; ++redirect_count) {
-                connection.session->sendRequest(request) << prepared_query;
-                response = std::make_unique<Poco::Net::HTTPResponse>();
-                in = &connection.session->receiveResponse(*response);
-                auto status = response->getStatus();
-                if (status != Poco::Net::HTTPResponse::HTTP_PERMANENT_REDIRECT && status != Poco::Net::HTTPResponse::HTTP_TEMPORARY_REDIRECT) {
-                    break;
+        LOG(request.getMethod() << " " << request.getHost() << request.getURI() << " body=" << prepared_query
+                                << " UA=" << request.get("User-Agent"));
+
+        int redirect_count = 0;
+        // Send request to server with finite count of retries.
+        for (int i = 1;; ++i) {
+            try {
+                for (; redirect_count < connection.redirect_limit; ++redirect_count) {
+                    connection.session->sendRequest(request) << prepared_query;
+                    response = std::make_unique<Poco::Net::HTTPResponse>();
+                    in = &connection.session->receiveResponse(*response);
+                    auto status = response->getStatus();
+                    if (status != Poco::Net::HTTPResponse::HTTP_PERMANENT_REDIRECT
+                        && status != Poco::Net::HTTPResponse::HTTP_TEMPORARY_REDIRECT) {
+                        break;
+                    }
+                    connection.session->reset(); // reset keepalived connection
+                    auto newLocation = response->get("Location");
+                    LOG("Redirected to " << newLocation << ", redirect index=" << redirect_count + 1 << "/" << connection.redirect_limit);
+                    uri = newLocation;
+                    connection.session->setHost(uri.getHost());
+                    connection.session->setPort(uri.getPort());
+                    request.setHost(uri.getHost());
+                    request.setURI(uri.getPathEtc());
                 }
+                break;
+            } catch (const Poco::IOException & e) {
                 connection.session->reset(); // reset keepalived connection
-                auto newLocation = response->get("Location");
-                LOG("Redirected to " << newLocation << ", redirect index=" << redirect_count + 1 << "/" << connection.redirect_limit);
-                uri = newLocation;
-                connection.session->setHost(uri.getHost());
-                connection.session->setPort(uri.getPort());
-                request.setHost(uri.getHost());
-                request.setURI(uri.getPathEtc());
+                LOG("Http request try=" << i << "/" << connection.retry_count << " failed: " << e.what() << ": " << e.message());
+                if (i > connection.retry_count)
+                    throw;
             }
-            break;
-        } catch (const Poco::IOException & e) {
-            connection.session->reset(); // reset keepalived connection
-            LOG("Http request try=" << i << "/" << connection.retry_count << " failed: " << e.what() << ": " << e.message());
-            if (i > connection.retry_count)
-                throw;
         }
-    }
 
-    Poco::Net::HTTPResponse::HTTPStatus status = response->getStatus();
-    if (status != Poco::Net::HTTPResponse::HTTP_OK) {
-        std::stringstream error_message;
-        if (status == Poco::Net::HTTPResponse::HTTP_TEMPORARY_REDIRECT || status == Poco::Net::HTTPResponse::HTTP_PERMANENT_REDIRECT) {
-            error_message << "Redirect count exceeded" << std::endl << "Redirect limit: " << connection.redirect_limit << std::endl;
+        Poco::Net::HTTPResponse::HTTPStatus status = response->getStatus();
+        if (status != Poco::Net::HTTPResponse::HTTP_OK) {
+            std::stringstream error_message;
+            if (status == Poco::Net::HTTPResponse::HTTP_TEMPORARY_REDIRECT || status == Poco::Net::HTTPResponse::HTTP_PERMANENT_REDIRECT) {
+                error_message << "Redirect count exceeded" << std::endl << "Redirect limit: " << connection.redirect_limit << std::endl;
+            } else {
+                error_message << "HTTP status code: " << status << std::endl << "Received error:" << std::endl << in->rdbuf() << std::endl;
+            }
+            LOG(error_message.str());
+            throw std::runtime_error(error_message.str());
+        }
+
+
+        result_reader = make_result_reader(response->get("X-Couchbase-Format", connection.default_format),
+            response->get("X-Couchbase-Timezone", Poco::Timezone::name()),
+            *in,
+            std::move(mutator),
+            cbCookie);
+    } else {
+        std::ostringstream payload;
+        payload << "{\"signature\":true,\"client-type\":\"jdbc\",\"plan-format\":\"string\",\"format\":\"lossless-adm\",\"max-warnings\":"
+                   "10,\"sql-compat\":true,"
+                   "\"statement\":\""
+                << query;
+        if (cbas_params_args.size()) {
+            payload << "\","
+                    << "\"args\":"
+                    << "[";
+            for (int i = 0; i < cbas_params_args.size(); i++) {
+                payload << cbas_params_args[i];
+                if (i != cbas_params_args.size() - 1) {
+                    payload << ",";
+                }
+            }
+            payload << "]";
         } else {
-            error_message << "HTTP status code: " << status << std::endl << "Received error:" << std::endl << in->rdbuf() << std::endl;
+            payload << "\"";
         }
-        LOG(error_message.str());
-        throw std::runtime_error(error_message.str());
-    }
+        payload << "}";
 
-    result_reader = make_result_reader(
-        response->get("X-Couchbase-Format", connection.default_format),
-        response->get("X-Couchbase-Timezone", Poco::Timezone::name()),
-        *in, std::move(mutator)
-    );
+        std::string payloadStr = payload.str();
+
+        lcb_CMDANALYTICS * cmd;
+        lcb_cmdanalytics_create(&cmd);
+        lcb_cmdanalytics_callback(cmd, queryCallback);
+        lcb_cmdanalytics_payload(cmd, payloadStr.c_str(), payloadStr.size());
+
+        std::ostringstream oss;
+        oss << (is_set_stmt_query_timeout ? stmt_query_timeout : connection.query_timeout) * 1000000;
+        connection.cb_check(lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics timeout");
+
+        connection.cb_check(lcb_analytics(connection.lcb_instance, &cbCookie, cmd), "Schedule Analytics Query");
+
+        lcb_cmdanalytics_destroy(cmd);
+        lcb_wait(connection.lcb_instance, LCB_WAIT_DEFAULT);
+
+        result_reader = make_result_reader("CBAS", "absurd_time_zone", *in, std::move(mutator), cbCookie);
+    }
 
     ++next_param_set_idx;
 }
@@ -239,9 +327,11 @@ void Statement::extractParametersinfo() {
             case '?': {
                 if (quoted_by == '\0') {
                     ParamInfo param_info;
-                    param_info.tmp_placeholder = generate_placeholder();
-                    query.replace(i, 1, param_info.tmp_placeholder);
-                    i += param_info.tmp_placeholder.size() - 1; // - 1 to compensate for's next ++i
+                    if (!getParent().isCB) {
+                        param_info.tmp_placeholder = generate_placeholder();
+                        query.replace(i, 1, param_info.tmp_placeholder);
+                        i += param_info.tmp_placeholder.size() - 1; // - 1 to compensate for's next ++i
+                    }
                     parameters.emplace_back(param_info);
                 }
                 break;
@@ -250,18 +340,13 @@ void Statement::extractParametersinfo() {
             case '@': {
                 if (quoted_by == '\0') {
                     ParamInfo param_info;
-
+                    if (!getParent().isCB) {
                     param_info.name = '@';
                     for (std::size_t j = i + 1; j < query.size(); ++j) {
                         const char jcurr = query[j];
-                        if (
-                            jcurr == '_' ||
-                            std::isalpha(jcurr) ||
-                            (std::isdigit(jcurr) && j > i + 1)
-                        ) {
+                        if (jcurr == '_' || std::isalpha(jcurr) || (std::isdigit(jcurr) && j > i + 1)) {
                             param_info.name += jcurr;
-                        }
-                        else {
+                        } else {
                             break;
                         }
                     }
@@ -272,6 +357,7 @@ void Statement::extractParametersinfo() {
                     param_info.tmp_placeholder = generate_placeholder();
                     query.replace(i, param_info.name.size(), param_info.tmp_placeholder);
                     i += param_info.tmp_placeholder.size() - 1; // - 1 to compensate for's next ++i
+                    }
                     parameters.emplace_back(param_info);
                 }
                 break;
@@ -287,35 +373,37 @@ void Statement::extractParametersinfo() {
 std::string Statement::buildFinalQuery(const std::vector<ParamBindingInfo>& param_bindings) {
     auto prepared_query = query;
 
-    for (std::size_t i = 0; i < parameters.size(); ++i) {
-        const auto & param_info = parameters[i];
-        std::string param_type;
+    if (!getParent().isCB) {
+        for (std::size_t i = 0; i < parameters.size(); ++i) {
+            const auto & param_info = parameters[i];
+            std::string param_type;
 
-        if (param_bindings.size() <= i) {
-            param_type = "Nullable(Nothing)";
+            if (param_bindings.size() <= i) {
+                param_type = "Nullable(Nothing)";
+            } else {
+                const auto & binding_info = param_bindings[i];
+
+                BoundTypeInfo type_info;
+                type_info.c_type = binding_info.c_type;
+                type_info.sql_type = binding_info.sql_type;
+                type_info.value_max_size = binding_info.value_max_size;
+                type_info.precision = binding_info.precision;
+                type_info.scale = binding_info.scale;
+                type_info.is_nullable = (binding_info.is_nullable || binding_info.value == nullptr);
+
+                param_type = convertSQLOrCTypeToDataSourceType(type_info);
+            }
+
+            const auto pos = prepared_query.find(param_info.tmp_placeholder);
+            if (pos == std::string::npos)
+                throw SqlException("COUNT field incorrect", "07002");
+
+            const auto param_name = getParamFinalName(i);
+            const std::string param_placeholder = "{" + param_name + ":" + param_type + "}";
+            prepared_query.replace(pos, param_info.tmp_placeholder.size(), param_placeholder);
         }
-        else {
-            const auto & binding_info = param_bindings[i];
-
-            BoundTypeInfo type_info;
-            type_info.c_type = binding_info.c_type;
-            type_info.sql_type = binding_info.sql_type;
-            type_info.value_max_size = binding_info.value_max_size;
-            type_info.precision = binding_info.precision;
-            type_info.scale = binding_info.scale;
-            type_info.is_nullable = (binding_info.is_nullable || binding_info.value == nullptr);
-
-            param_type = convertSQLOrCTypeToDataSourceType(type_info);
-        }
-
-        const auto pos = prepared_query.find(param_info.tmp_placeholder);
-        if (pos == std::string::npos)
-            throw SqlException("COUNT field incorrect", "07002");
-
-        const auto param_name = getParamFinalName(i);
-        const std::string param_placeholder = "{" + param_name + ":" + param_type + "}";
-        prepared_query.replace(pos, param_info.tmp_placeholder.size(), param_placeholder);
     }
+
 
     return prepared_query;
 }
@@ -526,5 +614,28 @@ void Statement::deallocateDescriptor(std::shared_ptr<Descriptor> & desc) {
     if (desc) {
         desc->deallocateSelf();
         desc.reset();
+    }
+}
+
+
+void Statement::queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPANALYTICS * resp) {
+    CallbackCookie * cookie;
+    const char * row;
+    size_t nrow;
+    lcb_STATUS rc = lcb_respanalytics_status(resp);
+
+    lcb_respanalytics_cookie(resp, (void **)&cookie);
+    lcb_respanalytics_row(resp, &row, &nrow);
+
+    if (rc == LCB_SUCCESS) {
+        if (lcb_respanalytics_is_final(resp)) {
+            cookie->queryMeta.assign(row, nrow);
+        } else {
+            cookie->queryResultStrm.write(row, nrow);
+            cookie->queryResultStrm << "\n";
+        }
+    }
+    if (rc != LCB_SUCCESS) {
+        std::cout << "Query Failed\n";
     }
 }

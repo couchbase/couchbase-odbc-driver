@@ -68,8 +68,13 @@ public:
     /// Make an implicit descriptor active again.
     void setImplicitDescriptor(SQLINTEGER type);
 
+    CallbackCookie cbCookie;
+    std::uint32_t stmt_query_timeout;
+    bool is_set_stmt_query_timeout;
+
 private:
     void requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mutator);
+    static void queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPANALYTICS * resp);
 
     void processEscapeSequences();
     void extractParametersinfo();
@@ -101,6 +106,7 @@ private:
     bool is_executed = false;
     std::string query;
     std::vector<ParamInfo> parameters;
+    std::vector<std::string> cbas_params_args;
 
     std::unique_ptr<Poco::Net::HTTPResponse> response;
     std::istream* in = nullptr;

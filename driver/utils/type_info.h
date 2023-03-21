@@ -1,9 +1,10 @@
 #pragma once
 
-#include "driver/platform/platform.h"
-#include "driver/utils/utils.h"
-#include "driver/utils/conversion.h"
 #include "driver/exception.h"
+#include "driver/platform/platform.h"
+#include "driver/utils/conversion.h"
+#include "driver/utils/ieee_754_converter.h"
+#include "driver/utils/utils.h"
 
 #include <algorithm>
 #include <sstream>
@@ -14,6 +15,7 @@
 #include <cstring>
 
 #define lengthof(a) (sizeof(a) / sizeof(a[0]))
+#define LOSSLESS_ADM_DELIMETER ':'
 
 struct TypeInfo {
     std::string sql_type_name;
@@ -44,6 +46,8 @@ struct TypeInfo {
 };
 
 extern const std::map<std::string, TypeInfo> types_g;
+extern const std::map<std::string, std::string> cb_to_ch_types_g;
+extern const std::map<std::string, uint8_t> types_id_g;
 
 inline const TypeInfo & type_info_for(const std::string & type) {
     const auto it = types_g.find(type);
@@ -705,6 +709,14 @@ namespace value_manip {
         using DestinationType = std::int64_t;
 
         static inline void convert(const SourceType & src, DestinationType & dest) {
+            if (src == "true") {
+                dest = 1LL;
+                return;
+            }
+            if (src == "false") {
+                dest = 0LL;
+                return;
+            }
             std::size_t pos = 0;
 
             try {
@@ -784,8 +796,16 @@ namespace value_manip {
         using DestinationType = std::uint64_t;
 
         static inline void convert(const SourceType & src, DestinationType & dest) {
-            std::size_t pos = 0;
+            if (src == "true") {
+                dest = 1ULL;
+                return;
+            }
+            if (src == "false") {
+                dest = 0ULL;
+                return;
+            }
 
+            std::size_t pos = 0;
             try {
                 dest = std::stoull(src, &pos, 10);
             }
@@ -882,17 +902,7 @@ namespace value_manip {
         using DestinationType = double;
 
         static inline void convert(const SourceType & src, DestinationType & dest) {
-            std::size_t pos = 0;
-
-            try {
-                dest = std::stod(src, &pos);
-            }
-            catch (const std::exception & e) {
-                throw std::runtime_error("Cannot interpret '" + src + "' as double: " + e.what());
-            }
-
-            if (pos != src.size())
-                throw std::runtime_error("Cannot interpret '" + src + "' as double: string consumed partially");
+            dest = ieee_ull_str_to_double(src);
         }
     };
 
