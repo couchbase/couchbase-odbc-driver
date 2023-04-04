@@ -12,6 +12,9 @@
 #define DATA_ARRAY_SIZE 3  // Buffers for rowsets
 
 int main() {
+    FILE *fp;
+    fp = fopen("bind_param_array.output", "w"); // open file in write mode
+
     SQLHENV henv = SQL_NULL_HENV;    // Environment
     SQLHDBC hdbc = SQL_NULL_HDBC;    // Connection handle
     SQLHSTMT hstmt = SQL_NULL_HSTMT; // Statement handle
@@ -69,23 +72,23 @@ int main() {
     // Column-wise binding
     //
     retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
-    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_ENV)", henv, SQL_HANDLE_ENV);
+    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_ENV)", henv, SQL_HANDLE_ENV, fp);
 
     retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLCHAR *)(void *)SQL_OV_ODBC3, -1);
-    CHECK_ERROR(retcode, "SQLSetEnvAttr(SQL_ATTR_ODBC_VERSION)", henv, SQL_HANDLE_ENV);
+    CHECK_ERROR(retcode, "SQLSetEnvAttr(SQL_ATTR_ODBC_VERSION)", henv, SQL_HANDLE_ENV, fp);
 
     retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
-    CHECK_ERROR(retcode, "SQLAllocHandle(SQLAllocHandle)", hdbc, SQL_HANDLE_DBC);
+    CHECK_ERROR(retcode, "SQLAllocHandle(SQLAllocHandle)", hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
-    CHECK_ERROR(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)", hdbc, SQL_HANDLE_DBC);
+    CHECK_ERROR(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)", hdbc, SQL_HANDLE_DBC, fp);
 
     // retcode = SQLConnect(hdbc, (SQLCHAR *)"DATASOURCE", SQL_NTS, (SQLCHAR *)NULL, 0, NULL, 0);
     retcode = SQLDriverConnect(hdbc, NULL, (SQLCHAR *)("DSN=Couchbase DSN (ANSI);"), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
-    CHECK_ERROR(retcode, " SQLDriverConnect(\"DSN=Couchbase DSN (ANSI);\")", hdbc, SQL_HANDLE_DBC);
+    CHECK_ERROR(retcode, " SQLDriverConnect(\"DSN=Couchbase DSN (ANSI);\")", hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
-    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_ENV)", hstmt, SQL_HANDLE_STMT);
+    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_ENV)", hstmt, SQL_HANDLE_STMT, fp);
 
     // Setup for SQLFetchScroll and SQLMoreResults
     retcode = SQLSetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_KEYSET_DRIVEN, 0);
@@ -110,36 +113,45 @@ int main() {
     retcode = SQLBindCol(hstmt, 2, SQL_C_CHAR, (SQLPOINTER)HotelArray[0].hotelName, 1024, (SQLLEN *)&HotelArray[0].hotelNameLenOrInd);
 
     retcode = SQLExecDirect(hstmt, stmt, SQL_NTS);
-    CHECK_ERROR(retcode, "SQLExecDirect()", hstmt, SQL_HANDLE_STMT);
+    CHECK_ERROR(retcode, "SQLExecDirect()", hstmt, SQL_HANDLE_STMT, fp);
 
     do {
         int rowSet = 1;
         while (SQLFetchScroll(hstmt, SQL_FETCH_NEXT, 0) == SQL_SUCCESS) {
             if (rowSet == 1)
                 printf("\nParams Processed : %i\n", (int)ParamsProcessed);
+                fprintf(fp, "\nParams Processed : %i\n", (int)ParamsProcessed);
             printf("\nRowSet: %d\n", rowSet);
+            fprintf(fp, "\nRowSet: %d\n", rowSet);
 
             /* You can also see the Status of Each row in the row set
             printf("\nRowset Status Array : \n");
+            fprintf(fp, "\nRowset Status Array : \n");
             for (i = 0; i < DATA_ARRAY_SIZE; i++) {
                 switch (RowStatusArray[i]) {
                     case SQL_ROW_SUCCESS_WITH_INFO:
                     case SQL_ROW_SUCCESS:
                         printf("\n  %i - ROW SUCCESS\n", i);
+                        fprintf(fp, "\n  %i - ROW SUCCESS\n", i);
                         break;
                     case SQL_ROW_NOROW:
                         printf("\n  %i - NO ROW\n", i);
+                        fprintf(fp, "\n  %i - NO ROW\n", i);
                         break;
                     default:
                         printf("\n  %i - ?\n", (int)RowStatusArray[i]);
+                        fprintf(fp, "\n  %i - ?\n", (int)RowStatusArray[i]);
                 }
             }
             */
 
             for (i = 0; i < RowsFetched; i++) {
                 printf("\trow %i: \n", i);
+                fprintf(fp, "\trow %i: \n", i);
                 printf("\t\tHotelID: %ld \n", HotelArray[i].hotelID);
+                fprintf(fp, "\t\tHotelID: %ld \n", HotelArray[i].hotelID);
                 printf("\t\tHotelName: %s \n", HotelArray[i].hotelName);
+                fprintf(fp, "\t\tHotelName: %s \n", HotelArray[i].hotelName);
             }
             rowSet++;
         }
@@ -148,6 +160,9 @@ int main() {
 exit:
 
     printf("\nComplete.\n");
+    fprintf(fp, "\nComplete.\n");
+
+    fclose(fp);
 
     // Free handles
     // Statement

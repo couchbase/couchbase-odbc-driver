@@ -4,7 +4,7 @@
 #include <string.h>
 
 
-void extract_error(char * fn, SQLHANDLE handle, SQLSMALLINT type) {
+void extract_error(char * fn, SQLHANDLE handle, SQLSMALLINT type, FILE *fp) {
     SQLINTEGER i = 0;
     SQLINTEGER NativeError;
     SQLCHAR SQLState[7];
@@ -13,17 +13,20 @@ void extract_error(char * fn, SQLHANDLE handle, SQLSMALLINT type) {
     SQLRETURN ret;
 
     fprintf(stderr, "\nThe driver reported the following error %s\n", fn);
+    fprintf(fp, "\nThe driver reported the following error %s\n", fn);
     do {
         ret = SQLGetDiagRec(type, handle, ++i, SQLState, &NativeError, MessageText, sizeof(MessageText), &TextLength);
         if (SQL_SUCCEEDED(ret)) {
             printf("%s:%ld:%ld:%s\n", SQLState, (long)i, (long)NativeError, MessageText);
+            fprintf(fp, "%s:%ld:%ld:%s\n", SQLState, (long)i, (long)NativeError, MessageText);
         }
     } while (ret == SQL_SUCCESS);
 }
 
-bool check_and_print_null(const char * nameBuff, SQLLEN * ind) {
+bool check_and_print_null(const char * nameBuff, SQLLEN * ind, FILE *fp) {
     if (ind && *ind == SQL_NULL_DATA) {
         printf("%s: NULL\n", nameBuff);
+        fprintf(fp, "%s: NULL\n", nameBuff);
         return true;
     }
 

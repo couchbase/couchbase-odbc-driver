@@ -21,6 +21,13 @@ class CallbackCookie {
 public:
     std::stringstream queryResultStrm;
     std::string queryMeta;
+    bool errorInResponse = false;
+
+    void cleanUp() {
+        queryMeta.clear();
+        queryResultStrm.clear();
+        queryResultStrm.str(std::string());
+    }
 };
 
 class ColumnInfo {

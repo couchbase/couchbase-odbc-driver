@@ -132,6 +132,7 @@ Poco::URI Connection::getUri() const {
 void Connection::cb_check(lcb_STATUS err, const char * msg) {
     if (err != LCB_SUCCESS) {
         fprintf(stdout, "[\x1b[31mERROR\x1b[0m] %s: %s\n", msg, lcb_strerror_short(err));
+        throw std::runtime_error(lcb_strerror_long(err));
     }
 }
 
@@ -254,7 +255,14 @@ void Connection::connect(const std::string & connection_string) {
         lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
         lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
 
-        cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
+        try {
+            cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
+        } catch (std::exception & ex) {
+            lcb_createopts_destroy(lcb_create_options);
+            throw std::runtime_error(ex.what());
+        }
+
+
         lcb_createopts_destroy(lcb_create_options);
 
         std::ostringstream oss;
@@ -263,7 +271,14 @@ void Connection::connect(const std::string & connection_string) {
 
         cb_check(lcb_connect(lcb_instance), "schedule connection");
         lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
-        cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
+
+
+        try {
+            cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
+        } catch (std::exception & ex) {
+            throw SqlException("Connection not open", "08003");
+        }
+
     }
 }
 

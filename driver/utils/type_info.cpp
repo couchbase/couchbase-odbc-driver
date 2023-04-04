@@ -40,6 +40,10 @@ const std::map<std::string, std::string> cb_to_ch_types_g = {
     {"double", "Float64"},
     {"int64", "Int64"},
     {"boolean", "UInt8"},
+    {"int32?", "Int32"},
+    {"int32", "Int32"},
+    {"int16?", "Int16"},
+    {"int16", "Int16"},
 };
 
 const std::map<std::string, uint8_t> types_id_g = {{"Float64", 12}};

@@ -1113,90 +1113,10 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetTypeInfo)(
     SQLSMALLINT type
 ) {
     LOG(__FUNCTION__ << "(type = " << type << ")");
-
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, statement_handle, [&](Statement & statement) {
-        std::stringstream query;
-        query << "SELECT * FROM (";
-
-        bool first = true;
-
-        auto add_query_for_type = [&](const std::string & name, const TypeInfo & info) mutable {
-            if (type != SQL_ALL_TYPES && type != info.sql_type)
-                return;
-
-            if (!first)
-                query << " UNION ALL ";
-            first = false;
-
-            query << "SELECT"
-                     " '"
-                  << info.sql_type_name
-                  << "' AS TYPE_NAME"
-                     ", toInt16("
-                  << info.sql_type
-                  << ") AS DATA_TYPE"
-                     ", toInt32("
-                  << info.column_size
-                  << ") AS COLUMN_SIZE"
-                     ", '' AS LITERAL_PREFIX"
-                     ", '' AS LITERAL_SUFFIX"
-                     ", '' AS CREATE_PARAMS" /// TODO
-                     ", toInt16("
-                  << SQL_NO_NULLS
-                  << ") AS NULLABLE"
-                     ", toInt16("
-                  << SQL_TRUE
-                  << ") AS CASE_SENSITIVE"
-                     ", toInt16("
-                  << SQL_SEARCHABLE
-                  << ") AS SEARCHABLE"
-                     ", toInt16("
-                  << info.is_unsigned
-                  << ") AS UNSIGNED_ATTRIBUTE"
-                     ", toInt16("
-                  << SQL_FALSE
-                  << ") AS FIXED_PREC_SCALE"
-                     ", toInt16("
-                  << SQL_FALSE
-                  << ") AS AUTO_UNIQUE_VALUE"
-                     ", TYPE_NAME AS LOCAL_TYPE_NAME"
-                     ", toInt16(0) AS MINIMUM_SCALE"
-                     ", toInt16(0) AS MAXIMUM_SCALE"
-                     ", DATA_TYPE AS SQL_DATA_TYPE"
-                     ", toInt16(0) AS SQL_DATETIME_SUB"
-                     ", toInt32(10) AS NUM_PREC_RADIX" /// TODO
-                     ", toInt16(0) AS INTERVAL_PRECISION";
-        };
-
-        for (const auto & name_info : types_g) {
-            add_query_for_type(name_info.first, name_info.second);
-        }
-
-        // TODO (artpaul) check current version of ODBC.
-        //
-        //      In ODBC 3.x, the SQL date, time, and timestamp data types
-        //      are SQL_TYPE_DATE, SQL_TYPE_TIME, and SQL_TYPE_TIMESTAMP, respectively;
-        //      in ODBC 2.x, the data types are SQL_DATE, SQL_TIME, and SQL_TIMESTAMP.
-        {
-            auto info = statement.getTypeInfo("Date", "Date");
-            info.sql_type = SQL_DATE;
-            add_query_for_type("Date", info);
-        }
-
-        {
-            auto info = statement.getTypeInfo("DateTime", "DateTime");
-            info.sql_type = SQL_TIMESTAMP;
-            add_query_for_type("DateTime", info);
-        }
-
-        query << ") ORDER BY DATA_TYPE";
-
-        if (first)
-            query.str("SELECT 1 WHERE 0");
-
-        statement.executeQuery(query.str());
+        statement.handleGetTypeInfo();
         return SQL_SUCCESS;
-    });
+  });
 }
 
 SQLRETURN SQL_API EXPORTED_FUNCTION(SQLNumParams)(

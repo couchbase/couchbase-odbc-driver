@@ -4,6 +4,8 @@
 #include <string.h>
 
 int main(int argc, char * argv[]) {
+    FILE *fp;
+    fp = fopen("bind_param_powerbi_demo.output", "w"); // open file in write mode
     SQLHENV env;
     SQLHDBC dbc;
     SQLHSTMT stmt;
@@ -33,21 +35,26 @@ int main(int argc, char * argv[]) {
 
     SQLNumResultCols(stmt, &columns);
     printf("totalCols: %u\n", columns);
+    fprintf(fp, "totalCols: %u\n", columns);
 
     SQLBIGINT bigIntColVal;
     int row = 1;
     while (SQLFetch(stmt) == SQL_SUCCESS) {
         printf("____ row:%d____\n", row);
+        fprintf(fp, "____ row:%d____\n", row);
         for (int i = 1; i <= columns; i++) {
             char nameBuff[1024];
             SQLSMALLINT nameBuffLenUsed;
             SQLColAttribute(stmt, (SQLUSMALLINT)i, SQL_DESC_NAME, nameBuff, (SQLSMALLINT)1024, &nameBuffLenUsed, NULL);
             SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_SLONG, (SQLPOINTER)(&bigIntColVal), (SQLLEN)0, NULL);
             printf("%s: %ld\n", nameBuff, bigIntColVal);
+            fprintf(fp, "%s: %ld\n", nameBuff, bigIntColVal);
         }
         printf("\n\n");
+        fprintf(fp, "\n\n");
         row++;
     }
+    fclose(fp);
 
     return 0;
 }

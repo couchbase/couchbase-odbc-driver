@@ -254,12 +254,26 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
         oss << (is_set_stmt_query_timeout ? stmt_query_timeout : connection.query_timeout) * 1000000;
         connection.cb_check(lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics timeout");
 
-        connection.cb_check(lcb_analytics(connection.lcb_instance, &cbCookie, cmd), "Schedule Analytics Query");
+        try{
+            connection.cb_check(lcb_analytics(connection.lcb_instance, &cbCookie, cmd), "Schedule Analytics Query");
+        } catch (std::exception & ex) {
+            lcb_cmdanalytics_destroy(cmd);
+            throw std::runtime_error(ex.what());
+        }
 
         lcb_cmdanalytics_destroy(cmd);
         lcb_wait(connection.lcb_instance, LCB_WAIT_DEFAULT);
 
         result_reader = make_result_reader("CBAS", "absurd_time_zone", *in, std::move(mutator), cbCookie);
+
+        if (cbCookie.errorInResponse == true) {
+            cbCookie.errorInResponse = false;
+            std::string str = cbCookie.queryResultStrm.str();
+
+            cbCookie.cleanUp();
+
+            throw std::runtime_error(str);
+        }
     }
 
     ++next_param_set_idx;
@@ -621,9 +635,16 @@ void Statement::deallocateDescriptor(std::shared_ptr<Descriptor> & desc) {
 void Statement::queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPANALYTICS * resp) {
     CallbackCookie * cookie;
     const char * row;
-    size_t nrow;
-    lcb_STATUS rc = lcb_respanalytics_status(resp);
+    const char *error_message;
+    const char *_statement;
+    const lcb_ANALYTICS_ERROR_CONTEXT *ctx;
 
+    size_t error_message_len;
+    size_t _statement_len;
+    uint32_t first_error_code;
+    size_t nrow;
+
+    lcb_STATUS rc = lcb_respanalytics_status(resp);
     lcb_respanalytics_cookie(resp, (void **)&cookie);
     lcb_respanalytics_row(resp, &row, &nrow);
 
@@ -636,6 +657,233 @@ void Statement::queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPA
         }
     }
     if (rc != LCB_SUCCESS) {
-        std::cout << "Query Failed\n";
+        lcb_respanalytics_error_context(resp, &ctx);
+        lcb_errctx_analytics_first_error_code(ctx , &first_error_code);
+        lcb_errctx_analytics_first_error_message(ctx, &error_message, &error_message_len);
+        lcb_errctx_analytics_statement(ctx, &_statement, &_statement_len);
+        cookie->queryResultStrm << "Status Code: " << rc << std::endl << "Return Code: "  << first_error_code << std::endl << "Error Message: " << error_message << std::endl << "query_from_user: " << _statement << std::endl;
+        cookie->errorInResponse = true;
     }
+}
+
+
+void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
+  result_reader.reset();
+  cbCookie.queryMeta =
+          "{\"signature\":{\
+              \"name\":[\"TYPE_NAME\",\
+                        \"DATA_TYPE\",\
+                        \"COLUMN_SIZE\",\
+                        \"LITERAL_PREFIX\",\
+                        \"LITERAL_SUFFIX\",\
+                        \"CREATE_PARAMS\",\
+                        \"NULLABLE\",\
+                        \"CASE_SENSITIVE\",\
+                        \"SEARCHABLE\",\
+                        \"UNSIGNED_ATTRIBUTE\",\
+                        \"FIXED_PREC_SCALE\",\
+                        \"AUTO_UNIQUE_VALUE\",\
+                        \"LOCAL_TYPE_NAME\",\
+                        \"MINIMUM_SCALE\",\
+                        \"MAXIMUM_SCALE\",\
+                        \"SQL_DATA_TYPE\",\
+                        \"SQL_DATETIME_SUB\",\
+                        \"NUM_PREC_RADIX\",\
+                        \"INTERVAL_PRECISION\"\
+                        ]\
+              ,\"type\":[\"string?\",\
+                        \"int16?\",\
+                        \"int32?\",\
+                        \"string?\",\
+                        \"string?\",\
+                        \"string?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"string?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int16?\",\
+                        \"int32?\",\
+                        \"int16?\"\
+                        ]}}";
+
+  cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"boolean\",\
+                                \"DATA_TYPE\":" << SQL_SMALLINT << ",\
+                                \"COLUMN_SIZE\":5,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":null,\
+                                \"MAXIMUM_SCALE\":null,\
+                                \"SQL_DATA_TYPE\":" << SQL_SMALLINT << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":10,\
+                                \"INTERVAL_PRECISION\":1\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int8\",\
+                                \"DATA_TYPE\":" << SQL_TINYINT << ",\
+                                \"COLUMN_SIZE\":3,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_TINYINT << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":10,\
+                                \"INTERVAL_PRECISION\":3\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int16\",\
+                                \"DATA_TYPE\":" << SQL_SMALLINT << ",\
+                                \"COLUMN_SIZE\":5,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_SMALLINT << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":10,\
+                                \"INTERVAL_PRECISION\":5\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int32\",\
+                                \"DATA_TYPE\":" << SQL_INTEGER << ",\
+                                \"COLUMN_SIZE\":10,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_INTEGER << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":10,\
+                                \"INTERVAL_PRECISION\":10\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int64\",\
+                                \"DATA_TYPE\":" << SQL_BIGINT << ",\
+                                \"COLUMN_SIZE\":19,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_BIGINT << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":10,\
+                                \"INTERVAL_PRECISION\":19\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"float\",\
+                                \"DATA_TYPE\":" << SQL_FLOAT << ",\
+                                \"COLUMN_SIZE\":15,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_FLOAT << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":2,\
+                                \"INTERVAL_PRECISION\":7\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"double\",\
+                                \"DATA_TYPE\":" << SQL_DOUBLE << ",\
+                                \"COLUMN_SIZE\":15,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_DOUBLE << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":2,\
+                                \"INTERVAL_PRECISION\":15\
+                              }" << "\n";
+    
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"string\",\
+                                \"DATA_TYPE\":" << SQL_VARCHAR << ",\
+                                \"COLUMN_SIZE\":2147483648,\
+                                \"LITERAL_PREFIX\":\"'\",\
+                                \"LITERAL_SUFFIX\":\"'\",\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":null,\
+                                \"MAXIMUM_SCALE\":null,\
+                                \"SQL_DATA_TYPE\":" << SQL_VARCHAR << ",\
+                                \"SQL_DATETIME_SUB\":null,\
+                                \"NUM_PREC_RADIX\":10,\
+                                \"INTERVAL_PRECISION\":32767\
+                              }" << "\n";
+    
+  result_reader = make_result_reader(
+                      "CBAS", //response->get("X-Couchbase-Format", connection.default_format),
+                      "crap", //response->get("X-Couchbase-Timezone", Poco::Timezone::name()),
+                      *in,
+                      std::move(mutator),
+                      cbCookie);
 }

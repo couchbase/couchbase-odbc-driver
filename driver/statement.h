@@ -72,6 +72,7 @@ public:
     std::uint32_t stmt_query_timeout;
     bool is_set_stmt_query_timeout;
 
+    void handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator = std::unique_ptr<ResultMutator>{});
 private:
     void requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mutator);
     static void queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPANALYTICS * resp);

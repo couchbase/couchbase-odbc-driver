@@ -1,5 +1,4 @@
 /*
- 
  https://docs.faircom.com/doc/sqlref/#33384.htm
  https://docs.microsoft.com/ru-ru/sql/odbc/reference/appendixes/time-date-and-interval-functions
  https://my.vertica.com/docs/7.2.x/HTML/index.htm#Authoring/SQLReferenceManual/Functions/Date-Time/TIMESTAMPADD.htm%3FTocPath%3DSQL%2520Reference%2520Manual%7CSQL%2520Functions%7CDate%252FTime%2520Functions%7C_____43
@@ -16,17 +15,17 @@ using namespace std;
 namespace {
 
 const std::map<const std::string, const std::string> fn_convert_map {
-    {"SQL_TINYINT", "toUInt8"},
-    {"SQL_SMALLINT", "toUInt16"},
-    {"SQL_INTEGER", "toInt32"},
-    {"SQL_BIGINT", "toInt64"},
-    {"SQL_REAL", "toFloat32"},
-    {"SQL_DOUBLE", "toFloat64"},
-    {"SQL_VARCHAR", "toString"},
-    {"SQL_DATE", "toDate"},
-    {"SQL_TYPE_DATE", "toDate"},
-    {"SQL_TIMESTAMP", "toDateTime"},
-    {"SQL_TYPE_TIMESTAMP", "toDateTime"},
+    {"SQL_TINYINT", "to_bigint"},
+    {"SQL_SMALLINT", "to_bigint"},
+    {"SQL_INTEGER", "to_bigint"},
+    {"SQL_BIGINT", "to_bigint"},
+    {"SQL_REAL", "to_number"},
+    {"SQL_DOUBLE", "to_double"},
+    {"SQL_VARCHAR", "to_string"},
+    {"SQL_DATE", "date"}, //what to use here??
+    {"SQL_TYPE_DATE", "date"},
+    {"SQL_TIMESTAMP", "datetime"},
+    {"SQL_TYPE_TIMESTAMP", "datetime"},
 };
 
 #define DECLARE2(TOKEN, NAME) \
