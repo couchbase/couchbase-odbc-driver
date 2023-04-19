@@ -21,7 +21,16 @@ uint64_t ieee_double_to_ull(double d) {
 }
 
 double ieee_ull_str_to_double(std::string ullStr) {
-    uint64_t ull = stoull(ullStr, nullptr, 10);
+    const int length = ullStr.length();
+ 
+    // declaring character array (+1 for null terminator)
+    char* char_array = new char[length + 1];
+ 
+    // copying the contents of the
+    // string to char array
+    strcpy(char_array, ullStr.c_str());
+
+    uint64_t ull = strtoull(char_array, nullptr, 10);
     if (ull == 9221120237041090560ULL) {
         return std::numeric_limits<double>().quiet_NaN(); // or signaling NaN ?
     }

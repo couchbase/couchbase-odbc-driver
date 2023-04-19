@@ -267,7 +267,7 @@ void Connection::connect(const std::string & connection_string) {
 
         std::ostringstream oss;
         oss << login_timeout * 1000000;
-        cb_check(lcb_cntl_string(lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
+        //cb_check(lcb_cntl_string(lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
 
         cb_check(lcb_connect(lcb_instance), "schedule connection");
         lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
@@ -449,7 +449,7 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             }
         } else if (Poco::UTF8::icompare(key, INI_LOGIN_TIMEOUT) == 0) {
             recognized_key = true;
-            unsigned int typed_value = 0;
+            unsigned int typed_value = 75;
             valid_value = (value.empty()
                 || (Poco::NumberParser::tryParseUnsigned(value, typed_value)
                     && typed_value <= std::numeric_limits<decltype(login_timeout)>::max()));

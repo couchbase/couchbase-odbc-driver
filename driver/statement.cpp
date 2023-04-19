@@ -252,7 +252,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
 
         std::ostringstream oss;
         oss << (is_set_stmt_query_timeout ? stmt_query_timeout : connection.query_timeout) * 1000000;
-        connection.cb_check(lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics timeout");
+        //connection.cb_check(lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics timeout");
 
         try{
             connection.cb_check(lcb_analytics(connection.lcb_instance, &cbCookie, cmd), "Schedule Analytics Query");
@@ -732,7 +732,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":1\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int8\",\
                                 \"DATA_TYPE\":" << SQL_TINYINT << ",\
                                 \"COLUMN_SIZE\":3,\
@@ -753,7 +752,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":3\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int16\",\
                                 \"DATA_TYPE\":" << SQL_SMALLINT << ",\
                                 \"COLUMN_SIZE\":5,\
@@ -774,7 +772,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":5\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int32\",\
                                 \"DATA_TYPE\":" << SQL_INTEGER << ",\
                                 \"COLUMN_SIZE\":10,\
@@ -795,7 +792,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":10\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"int64\",\
                                 \"DATA_TYPE\":" << SQL_BIGINT << ",\
                                 \"COLUMN_SIZE\":19,\
@@ -816,7 +812,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":19\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"float\",\
                                 \"DATA_TYPE\":" << SQL_FLOAT << ",\
                                 \"COLUMN_SIZE\":15,\
@@ -837,7 +832,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":2,\
                                 \"INTERVAL_PRECISION\":7\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"double\",\
                                 \"DATA_TYPE\":" << SQL_DOUBLE << ",\
                                 \"COLUMN_SIZE\":15,\
@@ -858,10 +852,9 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":2,\
                                 \"INTERVAL_PRECISION\":15\
                               }" << "\n";
-    
     cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"string\",\
                                 \"DATA_TYPE\":" << SQL_VARCHAR << ",\
-                                \"COLUMN_SIZE\":2147483648,\
+                                \"COLUMN_SIZE\":2147483647,\
                                 \"LITERAL_PREFIX\":\"'\",\
                                 \"LITERAL_SUFFIX\":\"'\",\
                                 \"CREATE_PARAMS\":null,\
@@ -879,7 +872,6 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":32767\
                               }" << "\n";
-    
   result_reader = make_result_reader(
                       "CBAS", //response->get("X-Couchbase-Format", connection.default_format),
                       "crap", //response->get("X-Couchbase-Timezone", Poco::Timezone::name()),

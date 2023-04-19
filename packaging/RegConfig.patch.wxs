@@ -1,0 +1,48 @@
+<CPackWiXPatch>
+    <CPackWiXFragment Id="CM_CP_ANSIDriver.bin.couchbaseodbc.dll">
+        <RegistryKey ForceCreateOnInstall="yes" Id="AnsiOdbcDriverRegInfo" Key="SOFTWARE\ODBC\ODBCINST.INI\Couchbase ODBC Driver (ANSI)" Root="HKLM">
+            <RegistryValue Name="Description" Type="string" Value="ODBC Driver (ANSI) for Couchbase"/>
+            <RegistryValue Name="Driver" Type="string" Value="[CM_DP_ANSIDriver.bin]couchbaseodbc.dll"/>
+            <RegistryValue Name="Setup" Type="string" Value="[CM_DP_ANSIDriver.bin]couchbaseodbc.dll"/>
+            <RegistryValue Name="DriverODBCVer" Type="string" Value="03.80"/>
+            <RegistryValue Name="ConnectFunctions" Type="string" Value="YYN"/>
+            <RegistryValue Name="APILevel" Type="string" Value="1"/>
+            <RegistryValue Name="SQLLevel" Type="string" Value="1"/>
+            <RegistryValue Name="FileUsage" Type="string" Value="0"/>
+        </RegistryKey>
+        <RegistryKey ForceCreateOnInstall="yes" Id="AnsiOdbcDriverRegInstalled" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Root="HKLM">
+            <RegistryValue Name="Couchbase ODBC Driver (ANSI)" Type="string" Value="Installed"/>
+        </RegistryKey>
+        <RegistryKey ForceCreateOnInstall="yes" Id="AnsiOdbcDsnRegInfo" Key="SOFTWARE\ODBC\ODBC.INI\Couchbase DSN (ANSI)" Root="HKLM">
+            <RegistryValue Name="Description" Type="string" Value="DSN (localhost) for Couchbase ODBC Driver (ANSI)"/>
+            <RegistryValue Name="Driver" Type="string" Value="Couchbase ODBC Driver (ANSI)"/>
+            <RegistryValue Name="Url" Type="string" Value="https://default:password@localhost:8443/query?database=default"/>
+        </RegistryKey>
+        <RegistryKey ForceCreateOnInstall="yes" Id="AnsiOdbcDsnRegInstalled" Key="SOFTWARE\ODBC\ODBC.INI\ODBC Data Sources" Root="HKLM">
+            <RegistryValue Name="Couchbase DSN (ANSI)" Type="string" Value="Couchbase ODBC Driver (ANSI)"/>
+        </RegistryKey>
+    </CPackWiXFragment>
+    <CPackWiXFragment Id="CM_CP_UnicodeDriver.bin.couchbaseodbcw.dll">
+        <RegistryKey ForceCreateOnInstall="yes" Id="UnicodeOdbcDriverRegInfo" Key="SOFTWARE\ODBC\ODBCINST.INI\Couchbase ODBC Driver (Unicode)" Root="HKLM">
+            <RegistryValue Name="Description" Type="string" Value="ODBC Driver (Unicode) for Couchbase"/>
+            <RegistryValue Name="Driver" Type="string" Value="[CM_DP_UnicodeDriver.bin]couchbaseodbcw.dll"/>
+            <RegistryValue Name="Setup" Type="string" Value="[CM_DP_UnicodeDriver.bin]couchbaseodbcw.dll"/>
+            <RegistryValue Name="DriverODBCVer" Type="string" Value="03.80"/>
+            <RegistryValue Name="ConnectFunctions" Type="string" Value="YYN"/>
+            <RegistryValue Name="APILevel" Type="string" Value="1"/>
+            <RegistryValue Name="SQLLevel" Type="string" Value="1"/>
+            <RegistryValue Name="FileUsage" Type="string" Value="0"/>
+        </RegistryKey>
+        <RegistryKey ForceCreateOnInstall="yes" Id="UnicodeOdbcDriverRegInstalled" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Root="HKLM">
+            <RegistryValue Name="Couchbase ODBC Driver (Unicode)" Type="string" Value="Installed"/>
+        </RegistryKey>
+        <RegistryKey ForceCreateOnInstall="yes" Id="UnicodeOdbcDsnRegInfo" Key="SOFTWARE\ODBC\ODBC.INI\Couchbase DSN (Unicode)" Root="HKLM">
+            <RegistryValue Name="Description" Type="string" Value="DSN (localhost) for Couchbase ODBC Driver (Unicode)"/>
+            <RegistryValue Name="Driver" Type="string" Value="Couchbase ODBC Driver (Unicode)"/>
+            <RegistryValue Name="Url" Type="string" Value="https://default:password@localhost:8443/query?database=default"/>
+        </RegistryKey>
+        <RegistryKey ForceCreateOnInstall="yes" Id="UnicodeOdbcDsnRegInstalled" Key="SOFTWARE\ODBC\ODBC.INI\ODBC Data Sources" Root="HKLM">
+            <RegistryValue Name="Couchbase DSN (Unicode)" Type="string" Value="Couchbase ODBC Driver (Unicode)"/>
+        </RegistryKey>
+    </CPackWiXFragment>
+</CPackWiXPatch>

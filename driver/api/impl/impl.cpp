@@ -222,8 +222,8 @@ SQLRETURN SetConnectAttr(
                 if (connection.lcb_instance != nullptr && connection.isCB) {
                     std::ostringstream oss;
                     oss << (connection.login_timeout * 1000000);
-                    connection.cb_check(
-                        lcb_cntl_string(connection.lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
+                    // connection.cb_check(
+                    //     lcb_cntl_string(connection.lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
                 }
                 return SQL_SUCCESS;
             }
@@ -435,8 +435,8 @@ SQLRETURN SetStmtAttr(
                 if (connection.lcb_instance != nullptr && connection.isCB) {
                     std::ostringstream oss;
                     oss << (statement.stmt_query_timeout) * 1000000;
-                    connection.cb_check(
-                        lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics_timeout");
+                    // connection.cb_check(
+                    //     lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics_timeout");
                 }
                 return SQL_SUCCESS;
             }

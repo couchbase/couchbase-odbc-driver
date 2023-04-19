@@ -157,7 +157,7 @@ target_include_directories (${libname}-impl
     PUBLIC ${FOLLY_INLUDE_DIR}      # TODO: switch to linking with folly lib target?
     PUBLIC ${PROJECT_BINARY_DIR}
     PUBLIC ${PROJECT_SOURCE_DIR}
-    PUBLIC ${PROJECT_SOURCE_DIR}/contrib/libcouchbase/include
+    PUBLIC ${PROJECT_SOURCE_DIR}/contrib/libcouchbase/includeextc
     PUBLIC ${PROJECT_BINARY_DIR}/contrib/libcouchbase/generated
 )
 

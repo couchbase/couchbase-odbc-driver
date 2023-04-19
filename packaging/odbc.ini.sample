@@ -1,0 +1,21 @@
+# Insert the content of this file into ~/.odbc.ini or /etc/odbc.ini files.
+
+[ODBC Data Sources]
+Couchbase DSN (ANSI)    = Couchbase ODBC Driver (ANSI)
+Couchbase DSN (Unicode) = Couchbase ODBC Driver (Unicode)
+
+[Couchbase DSN (ANSI)]
+Driver      = Couchbase ODBC Driver (ANSI)
+Description = DSN (localhost) for Couchbase ODBC Driver (ANSI)
+
+[Couchbase DSN (ANSI)]
+Driver      = Couchbase ODBC Driver (ANSI)
+Description = DSN (localhost) for Couchbase ODBC Driver (ANSI)
+Server = localhost
+Database = default
+UID = default
+PWD =
+Port = 18123
+Proto = http
+DriverLog = yes
+DriverLogFile = /tmp/couchbase-odbc-ansi-driver.log

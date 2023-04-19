@@ -1,0 +1,18 @@
+# Insert the content of this file into ~/.odbcinst.ini or /etc/odbcinst.ini files,
+# and fix the absolute paths to libcouchbaseodbc.so and libcouchbaseodbcw.so files.
+
+[ODBC Drivers]
+Couchbase ODBC Driver (ANSI)    = Installed
+Couchbase ODBC Driver (Unicode) = Installed
+
+[Couchbase ODBC Driver (ANSI)]
+Description = ODBC Driver (ANSI) for Couchbase
+Driver      = /usr/local/lib64/libcouchbaseodbc.so
+Setup       = /usr/local/lib64/libcouchbaseodbc.so
+UsageCount  = 1
+
+[Couchbase ODBC Driver (Unicode)]
+Description = ODBC Driver (Unicode) for Couchbase
+Driver      = /usr/local/lib64/libcouchbaseodbcw.so
+Setup       = /usr/local/lib64/libcouchbaseodbcw.so
+UsageCount  = 1

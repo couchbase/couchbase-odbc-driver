@@ -205,6 +205,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
 
             /// UINTEGER non-empty bitmasks
             CASE_NUM(SQL_CATALOG_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION)
+            CASE_NUM(SQL_OWNER_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION)
             CASE_NUM(SQL_AGGREGATE_FUNCTIONS,
                 SQLUINTEGER,
                 SQL_AF_ALL | SQL_AF_AVG | SQL_AF_COUNT | SQL_AF_DISTINCT | SQL_AF_MAX | SQL_AF_MIN | SQL_AF_SUM)
@@ -352,7 +353,6 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
             CASE_FALLTHROUGH(SQL_STATIC_CURSOR_ATTRIBUTES2)
             CASE_FALLTHROUGH(SQL_INFO_SCHEMA_VIEWS)
             CASE_FALLTHROUGH(SQL_POS_OPERATIONS)
-            CASE_FALLTHROUGH(SQL_SCHEMA_USAGE)
             CASE_FALLTHROUGH(SQL_SYSTEM_FUNCTIONS)
             CASE_FALLTHROUGH(SQL_SQL92_FOREIGN_KEY_DELETE_RULE)
             CASE_FALLTHROUGH(SQL_SQL92_FOREIGN_KEY_UPDATE_RULE)
@@ -862,41 +862,73 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
         std::stringstream query;
         query << "SELECT";
 
-        // Get a list of all databases.
-        if (catalog == SQL_ALL_CATALOGS && schema.empty() && table.empty()) {
-            query << " CAST(name, 'Nullable(String)') AS TABLE_CAT,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_SCHEM,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_NAME,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_TYPE,";
-            query << " CAST(NULL, 'Nullable(String)') AS REMARKS";
-            query << " FROM system.databases";
+        if(catalog == SQL_ALL_CATALOGS && schema.empty() && table.empty()){
+                query << " Distinct TABLE_CAT,TABLE_SCHEM,null TABLE_NAME,TABLE_TYPE, null REMARKS ";
+                query << " from Metadata.`Dataset` ds join Metadata.`Datatype` dt ";
+                query << " on ds.DatatypeDataverseName = dt.DataverseName ";
+                query << " and ds.DatatypeName = dt.DatatypeName ";
+                query << " let ";
+                switch (2)
+                {
+                case 1:
+                    query << "TABLE_CAT = ds.DataverseName, ";
+                    query << "TABLE_SCHEM = null, ";
+                    break;
+                case 2:
+                    query << "dvname = decode_dataverse_name(ds.DataverseName), ";
+                    query << "TABLE_CAT = dvname[0], ";
+                    query <<" sch = dvname[1],";
+                    query << "TABLE_SCHEM = sch, ";
+                    break;
+                }
+                query << " TABLE_TYPE = 'VIEW', ";
+                query << " isView = ds.DatasetType = 'VIEW',";
+                query << " hasFields = array_length(dt.Derived.Record.Fields) > 0 ";
+                query << " where isView and hasFields ";
+                query << " order by TABLE_TYPE, TABLE_CAT, TABLE_SCHEM, TABLE_NAME ";
         }
-        // Get a list of all schemas (currently, just an empty list).
         else if (catalog.empty() && schema == SQL_ALL_SCHEMAS && table.empty()) {
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_CAT,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_SCHEM,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_NAME,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_TYPE,";
-            query << " CAST(NULL, 'Nullable(String)') AS REMARKS";
-            query << " WHERE (1 == 0)";
+            query << " null TABLE_CAT, ";
+            query << " null TABLE_SCHEM,";
+            query << " null TABLE_NAME, ";
+            query << " null TABLE_TYPE ";
+            query << " order by TABLE_CAT,TABLE_SCHEM, TABLE_NAME,TABLE_TYPE ";
         }
-        // Get a list of all valid table types (currently, 'TABLE' only.)
+        // Get a list of all Tabular Views (TAVs)
         else if (catalog.empty() && schema.empty() && table.empty() && table_type_list == SQL_ALL_TABLE_TYPES) {
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_CAT,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_SCHEM,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_NAME,";
-            query << " CAST('TABLE', 'Nullable(String)') AS TABLE_TYPE,";
-            query << " CAST(NULL, 'Nullable(String)') AS REMARKS";
+            query << " null TABLE_CAT, ";
+            query << " null TABLE_SCHEM, ";
+            query << " null TABLE_NAME,";
+            query << " TABLE_TYPE, ";
+            query << " let ";
+            query << " TABLE_TYPE = 'View' ";
+            query << " order by TABLE_CAT,TABLE_SCHEM, TABLE_NAME,TABLE_TYPE ";
         }
-        // Get a list of tables matching all criteria.
+        // Get a list of TAVs matching all criteria.
         else {
-            query << " CAST(database, 'Nullable(String)') AS TABLE_CAT,";
-            query << " CAST(NULL, 'Nullable(String)') AS TABLE_SCHEM,";
-            query << " CAST(name, 'Nullable(String)') AS TABLE_NAME,";
-            query << " CAST('TABLE', 'Nullable(String)') AS TABLE_TYPE,";
-            query << " CAST(NULL, 'Nullable(String)') AS REMARKS";
-            query << " FROM system.tables";
-            query << " WHERE (1 == 1)";
+            query << " Distinct TABLE_CAT,TABLE_SCHEM,TABLE_NAME,TABLE_TYPE, null REMARKS ";
+            query << " from Metadata.`Dataset` ds join Metadata.`Datatype` dt ";
+            query << " on ds.DatatypeDataverseName = dt.DataverseName ";
+            query << " and ds.DatatypeName = dt.DatatypeName ";
+            query << " let ";
+            switch (2)
+            {
+            case 1:
+                query << "TABLE_CAT = ds.DataverseName, ";
+                query << "TABLE_SCHEM = null, ";
+                break;
+            case 2:
+                query << "dvname = decode_dataverse_name(ds.DataverseName), ";
+                query << "TABLE_CAT = dvname[0], ";
+                query <<" sch = dvname[1],";
+                query << "TABLE_SCHEM = sch, ";
+                break;
+            }
+            query << " TABLE_NAME = ds.DatasetName, ";
+            query << " TABLE_TYPE = 'VIEW', ";
+            query << " isView = ds.DatasetType = 'VIEW',";
+            query << " hasFields = array_length(dt.Derived.Record.Fields) > 0 ";
+            query << " where isView and hasFields ";
 
             // Completely ommit the condition part of the query, if the value of SQL_ATTR_METADATA_ID is SQL_TRUE
             // (i.e., values for the components are not patterns), and the component hasn't been supplied at all
@@ -908,31 +940,34 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
 
             // TODO: Use of coalesce() is a workaround here. Review.
 
-            // Note, that 'catalog' variable will be set to "%" above (or to the connected database name), even if CatalogName == nullptr.
+           // Note, that 'catalog' variable will be set to "%" above (or to the connected database name), even if CatalogName == nullptr.
             if (is_pattern && !is_odbc_v2) {
-                if (!isMatchAnythingCatalogFnPatternArg(catalog))
-                    query << " AND isNotNull(TABLE_CAT) AND coalesce(TABLE_CAT, '') LIKE '" << escapeForSQL(catalog) << "'";
+                if (!isMatchAnythingCatalogFnPatternArg(catalog)){
+                    query << " AND TABLE_CAT LIKE '" << escapeForSQL(catalog) << "'";
+                }
             }
             else if (CatalogName) {
-                query << " AND isNotNull(TABLE_CAT) AND coalesce(TABLE_CAT, '') == '" << escapeForSQL(catalog) << "'";
+                query << " AND (TABLE_CAT is Not Null)  AND coalesce(TABLE_CAT, '') = " << escapeForSQL(catalog) << "'";
             }
 
             // Note, that 'schema' variable will be set to "%" above, even if SchemaName == nullptr.
             if (is_pattern) {
-                if (!isMatchAnythingCatalogFnPatternArg(schema))
-                    query << " AND isNotNull(TABLE_SCHEM) AND coalesce(TABLE_SCHEM, '') LIKE '" << escapeForSQL(schema) << "'";
+                if (!isMatchAnythingCatalogFnPatternArg(schema)){
+                    query << " AND TABLE_SCHEM LIKE '" << escapeForSQL(schema) << "'";
+                }
             }
             else if (SchemaName) {
-                query << " AND isNotNull(TABLE_SCHEM) AND coalesce(TABLE_SCHEM, '') == '" << escapeForSQL(schema) << "'";
+                query << " AND (TABLE_SCHEM is Not Null) AND coalesce(TABLE_SCHEM, '') = '" << escapeForSQL(schema) << "'";
             }
 
             // Note, that 'table' variable will be set to "%" above, even if TableName == nullptr.
             if (is_pattern) {
-                if (!isMatchAnythingCatalogFnPatternArg(table))
-                    query << " AND isNotNull(TABLE_NAME) AND coalesce(TABLE_NAME, '') LIKE '" << escapeForSQL(table) << "'";
+                if (!isMatchAnythingCatalogFnPatternArg(table)){
+                    query << " AND TABLE_NAME LIKE '" << escapeForSQL(table) << "'";
+                }
             }
             else if (TableName) {
-                query << " AND isNotNull(TABLE_NAME) AND coalesce(TABLE_NAME, '') == '" << escapeForSQL(table) << "'";
+                query << " AND (TABLE_NAME is Not Null) AND coalesce(TABLE_NAME, '') =  '" << escapeForSQL(table) << "'";
             }
 
             // Table type list is not affected by the value of SQL_ATTR_METADATA_ID, so we always treat it as a list of patterns.
@@ -942,16 +977,15 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
                     has_match_anything = has_match_anything || isMatchAnythingCatalogFnPatternArg(table_type);
                 }
                 if (!has_match_anything) {
-                    query << " AND isNotNull(TABLE_TYPE) AND (1 == 0";
+                    query << " AND (TABLE_TYPE is Not Null) AND (1=0";
                     for (const auto & table_type : table_types) {
-                        query << " OR coalesce(TABLE_TYPE, '') LIKE '" << escapeForSQL(table_type) << "'";
+                        query << "  OR coalesce(TABLE_TYPE, '') LIKE '" << escapeForSQL(table_type) << "'";
                     }
                     query << ")";
                 }
             }
+            query << " ORDER BY TABLE_TYPE, TABLE_CAT, TABLE_SCHEM, TABLE_NAME";
         }
-
-        query << " ORDER BY TABLE_TYPE, TABLE_CAT, TABLE_SCHEM, TABLE_NAME";
         statement.executeQuery(query.str());
 
         return SQL_SUCCESS;
@@ -1007,12 +1041,6 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
             }, row.fields.at(5).data);
 
             const TypeInfo & type_info = statement.getTypeInfo(tmp_column_info.type, tmp_column_info.type_without_parameters);
-
-            row.fields.at(4).data = DataSourceType<DataSourceTypeId::Int16>{type_info.sql_type};
-            row.fields.at(5).data = DataSourceType<DataSourceTypeId::String>{type_info.sql_type_name};
-            row.fields.at(6).data = DataSourceType<DataSourceTypeId::Int32>{type_info.column_size};
-            row.fields.at(13).data = DataSourceType<DataSourceTypeId::Int16>{type_info.sql_type};
-            row.fields.at(15).data = DataSourceType<DataSourceTypeId::Int32>{type_info.octet_length};
         }
 
     private:
@@ -1033,28 +1061,50 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
         // TODO: review types and set NULL everything than has to be NULL.
 
         std::stringstream query;
-        query << "SELECT"
-                 " database AS TABLE_CAT"   // 0
-                 ", '' AS TABLE_SCHEM"      // 1
-                 ", table AS TABLE_NAME"    // 2
-                 ", name AS COLUMN_NAME"    // 3
-                 ", 0 AS DATA_TYPE"         // 4
-                 ", type AS TYPE_NAME"      // 5
-                 ", 0 AS COLUMN_SIZE"       // 6
-                 ", 0 AS BUFFER_LENGTH"     // 7
-                 ", 0 AS DECIMAL_DIGITS"    // 8
-                 ", 0 AS NUM_PREC_RADIX"    // 9
-                 ", 0 AS NULLABLE"          // 10
-                 ", 0 AS REMARKS"           // 11
-                 ", 0 AS COLUMN_DEF"        // 12
-                 ", 0 AS SQL_DATA_TYPE"     // 13
-                 ", 0 AS SQL_DATETIME_SUB"  // 14
-                 ", 0 AS CHAR_OCTET_LENGTH" // 15
-                 ", 0 AS ORDINAL_POSITION"  // 16
-                 ", 0 AS IS_NULLABLE"       // 17
-                 " FROM system.columns"
-                 " WHERE (1 == 1)";
-
+        query <<"SELECT TABLE_CAT"                                                    //1
+                ",TABLE_SCHEM"                                                        //2
+                ",TABLE_NAME"                                                         //3
+                ",COLUMN_NAME"                                                        //4
+                ",case when TYPE_NAME = 'int64' then -5 "
+                "     when TYPE_NAME = 'double' then 8 "
+                "     when TYPE_NAME = 'string' then 12 "
+                "     else -1 end DATA_TYPE"                                          //5
+                ",TYPE_NAME"                                                          //6
+                ",case when TYPE_NAME = 'string' then 32000 "
+                "      when TYPE_NAME = 'double' then 15 "
+                "      when TYPE_NAME = 'int64' then 19 "
+                "      else -1 end COLUMN_SIZE"                                       //7
+                ",case when TYPE_NAME = 'string' then 32000 "
+                "      when TYPE_NAME = 'int64' then 19 "
+                "      else -1 end BUFFER_LENGTH"                                     //8
+                ",0 DECIMAL_DIGITS"                                                   //9
+                ",10 NUM_PREC_RADIX"                                                  //10
+                ",1 NULLABLE"                                                         //11
+                ",'' REMARKS"                                                         //12
+                ",'' COLUMN_DEF"                                                      //13
+                ",case when TYPE_NAME = 'int64' then -5 "
+                "      when TYPE_NAME = 'double' then 8 "
+                "      when TYPE_NAME = 'string' then 12 "
+                "      else -1 end SQL_DATA_TYPE"                                     //14
+                ",0 SQL_DATETIME_SUB"                                                 //15
+                ",case when TYPE_NAME = 'string' then 32000 "
+                "      else null end CHAR_OCTET_LENGTH"                               //16
+                ",1 ORDINAL_POSITION"                                                 //17
+                ",'YES' IS_NULLABLE"                                                  //18
+                " FROM Metadata.`Dataset` ds"
+                " JOIN Metadata.`Datatype` dt ON ds.DatatypeDataverseName = dt.DataverseName"
+                " AND ds.DatatypeName = dt.DatatypeName"
+                " UNNEST dt.Derived.Record.Fields AS field AT fieldpos LEFT"
+                " JOIN Metadata.`Datatype` dt2 ON field.FieldType = dt2.DatatypeName"
+                " AND ds.DataverseName = dt2.DataverseName"
+                " AND dt2.Derived IS KNOWN"
+                " LET dvname = decode_dataverse_name(ds.DataverseName),"
+                " TABLE_CAT = dvname[0],"
+                " TABLE_SCHEM = case array_length(dvname) when 1 then null else dvname[1] end,"
+                " TABLE_NAME = ds.DatasetName,"
+                " TYPE_NAME =field.FieldType,"
+                " COLUMN_NAME = field.FieldName"
+                " WHERE (ARRAY_LENGTH(dt.Derived.Record.Fields) > 0)";
         // Completely ommit the condition part of the query, if the value of SQL_ATTR_METADATA_ID is SQL_TRUE
         // (i.e., values for the components are not patterns), and the component hasn't been supplied at all
         // (i.e. is nullptr; note, that actual empty strings are considered "supplied".)
@@ -1066,19 +1116,19 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
         // Note, that 'catalog' variable will be set to "%" above (or to the connected database name), even if CatalogName == nullptr.
         if (is_pattern) {
             if (!isMatchAnythingCatalogFnPatternArg(catalog))
-                query << " AND isNotNull(TABLE_CAT) AND coalesce(TABLE_CAT, '') LIKE '" << escapeForSQL(catalog) << "'";
+                query << " AND TABLE_CAT LIKE '" << escapeForSQL(catalog) << "'";
         }
         else if (CatalogName) {
-            query << " AND isNotNull(TABLE_CAT) AND coalesce(TABLE_CAT, '') == '" << escapeForSQL(catalog) << "'";
+            query << " AND (TABLE_CAT is Not Null) AND coalesce(TABLE_CAT, '') = '" << escapeForSQL(catalog) << "'";
         }
 
         // Note, that 'schema' variable will be set to "%" above, even if SchemaName == nullptr.
         if (is_pattern) {
             if (!isMatchAnythingCatalogFnPatternArg(schema))
-                query << " AND isNotNull(TABLE_SCHEM) AND coalesce(TABLE_SCHEM, '') LIKE '" << escapeForSQL(schema) << "'";
+                query << " AND TABLE_SCHEM LIKE '" << escapeForSQL(schema) << "'";
         }
         else if (SchemaName) {
-            query << " AND isNotNull(TABLE_SCHEM) AND coalesce(TABLE_SCHEM, '') == '" << escapeForSQL(schema) << "'";
+            query << " AND (TABLE_SCHEM is Not Null) AND coalesce(TABLE_SCHEM, '') = '" << escapeForSQL(schema) << "'";
         }
 
         // Note, that 'table' variable will be set to "%" above, even if TableName == nullptr.
@@ -1087,7 +1137,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
                 query << " AND TABLE_NAME LIKE '" << escapeForSQL(table) << "'";
         }
         else if (TableName) {
-            query << " AND TABLE_NAME == '" << escapeForSQL(table) << "'";
+            query << " AND TABLE_NAME = '" << escapeForSQL(table) << "'";
         }
 
         // Note, that 'column' variable will be set to "%" above, even if ColumnName == nullptr.
@@ -1096,7 +1146,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
                 query << " AND COLUMN_NAME LIKE '" << escapeForSQL(column) << "'";
         }
         else if (ColumnName) {
-            query << " AND COLUMN_NAME == '" << escapeForSQL(column) << "'";
+            query << " AND COLUMN_NAME = '" << escapeForSQL(column) << "'";
         }
 
         query << " ORDER BY TABLE_CAT, TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION";
