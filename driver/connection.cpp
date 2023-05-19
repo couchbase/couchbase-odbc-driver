@@ -13,6 +13,12 @@
 #include <Poco/URI.h>
 #include <random>
 
+extern "C" {
+lcb_STATUS lcb_createopts_destroy(lcb_CREATEOPTS *);
+lcb_STATUS lcb_createopts_connstr(lcb_CREATEOPTS *,const char *,size_t);
+lcb_STATUS lcb_createopts_credentials(lcb_CREATEOPTS *, const char *,size_t , const char *, size_t );
+}
+
 
 #if !defined(WORKAROUND_DISABLE_SSL)
 #    include <Poco/Net/AcceptCertificateHandler.h>

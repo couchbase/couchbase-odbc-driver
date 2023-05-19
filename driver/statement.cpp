@@ -17,6 +17,12 @@
 #include <cstdio>
 #include <sstream>
 
+extern "C" {
+lcb_STATUS lcb_cmdanalytics_create(lcb_CMDANALYTICS **);
+lcb_STATUS lcb_cmdanalytics_destroy(lcb_CMDANALYTICS *);
+lcb_STATUS lcb_analytics(lcb_INSTANCE *, void *, const lcb_CMDANALYTICS *);
+}
+
 Statement::Statement(Connection & connection)
     : ChildType(connection)
 {

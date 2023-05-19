@@ -36,6 +36,9 @@
   */
 
 extern "C" {
+void lcb_destroy(lcb_INSTANCE *);
+}
+extern "C" {
 
 SQLRETURN SQL_API EXPORTED_FUNCTION(SQLAllocHandle)(SQLSMALLINT handle_type, SQLHANDLE input_handle, SQLHANDLE * output_handle) {
     LOG(__FUNCTION__ << " handle_type=" << handle_type << " input_handle=" << input_handle);
