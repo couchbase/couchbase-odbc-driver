@@ -1263,9 +1263,9 @@ SQLRETURN EndTran(
 ) noexcept {
     auto func = [&] (auto & object) {
 
-        // TODO: implement.
+        // Return error as CBAS doesn't support concept of commit/rollback at transaction level.
 
-        return SQL_SUCCESS;
+        return SQL_ERROR;
     };
 
     return CALL_WITH_TYPED_HANDLE_SKIP_DIAG(handle_type, handle, func);

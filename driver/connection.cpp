@@ -1,4 +1,4 @@
-#include <string.h> /* strlen */
+#include <string.h>
 
 #include "driver/cJSON.h"
 #include "driver/config/ini_defines.h"
@@ -226,13 +226,9 @@ void Connection::connect(const std::string & connection_string) {
             verifyConnection();
         }
     } else {
-        // conn_str format "couchbase://localhost:port=proto";
-        // example: "couchbase://localhost:9000=http";
-
         const char * cb_username = username.c_str();
         const char * cb_password = password.c_str();
         char conn_str[1024];
-
         std::string bucketName;
         {
             size_t found = database.find('`', 1);
@@ -240,8 +236,6 @@ void Connection::connect(const std::string & connection_string) {
                 bucketName = database.substr(1, found - 1);
             }
         }
-
-
         const std::string EMPTY_STRING = "";
         if (port != 0 && proto != EMPTY_STRING) {
             if (sprintf(conn_str, "couchbase://%s:%hu=%s/%s", server.c_str(), port, proto.c_str(), bucketName.c_str()) >= 1024) {
@@ -254,31 +248,21 @@ void Connection::connect(const std::string & connection_string) {
         } else {
             std::cout << "Invalid Config, Either supply both port and proto or none\n";
         }
-
         lcb_CREATEOPTS * lcb_create_options = NULL;
-
         lcb_createopts_create(&lcb_create_options, LCB_TYPE_BUCKET);
         lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
         lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
-
         try {
             cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
         } catch (std::exception & ex) {
             lcb_createopts_destroy(lcb_create_options);
             throw std::runtime_error(ex.what());
         }
-
-
         lcb_createopts_destroy(lcb_create_options);
-
         std::ostringstream oss;
         oss << login_timeout * 1000000;
-        //cb_check(lcb_cntl_string(lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
-
         cb_check(lcb_connect(lcb_instance), "schedule connection");
         lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
-
-
         try {
             cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
         } catch (std::exception & ex) {
@@ -307,6 +291,8 @@ void Connection::resetConfiguration() {
     path.clear();
     default_format.clear();
     database.clear();
+    browseResult.clear();
+    browseConnectStep = 0;
     stringmaxlength = 0;
 }
 
@@ -532,15 +518,12 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     for (auto & field : cs_fields) {
         const auto & key = field.first;
         const auto & value = field.second;
-
         if (dsn_fields.find(key) != dsn_fields.end()) {
             LOG("Connection string: attribute '" << key << " = " << value << "' overrides DSN attribute with the same name");
         }
-
         const auto res = set_config_value(key, value);
         const auto & recognized_key = std::get<0>(res);
         const auto & valid_value = std::get<1>(res);
-
         if (recognized_key) {
             if (!valid_value)
                 throw std::runtime_error("Connection string: bad value '" + value + "' for attribute '" + key + "'");
@@ -790,4 +773,11 @@ Statement& Connection::allocateChild<Statement>() {
 template <>
 void Connection::deallocateChild<Statement>(SQLHANDLE handle) noexcept {
     statements.erase(handle);
+}
+
+std::string Connection::handleNativeSql(const std::string & q) {
+    auto & statement = allocateChild<Statement>();
+    std::string query = statement.nativeSql(q);
+    statement.deallocateSelf();
+    return query;
 }

@@ -46,7 +46,8 @@ public: // Configuration fields.
     std::string database;
     bool huge_int_as_string = false;
     std::int32_t stringmaxlength = 0;
-
+    std::string browseResult;
+    int browseConnectStep = 0;
 public:
     std::string useragent;
 
@@ -58,10 +59,8 @@ public:
 
 public:
     explicit Connection(Environment & environment);
-
     // Lookup TypeInfo for given name of type.
     const TypeInfo & getTypeInfo(const std::string & type_name, const std::string & type_name_without_parameters) const;
-
     Poco::URI getUri() const;
 
     void connect(const std::string & connection_string);
@@ -90,6 +89,8 @@ public:
     // Leave unimplemented for general case.
     template <typename T> T & allocateChild();
     template <typename T> void deallocateChild(SQLHANDLE) noexcept;
+
+    std::string handleNativeSql(const std::string& q);
 
 private:
     // Reset all configuration fields to their default/unintialized values.

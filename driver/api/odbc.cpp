@@ -16,6 +16,7 @@
 #include <Poco/Timezone.h>
 
 #include <libcouchbase/couchbase.h>
+#include "driver/api/impl/queries.h"
 
 #include <iostream>
 #include <locale>
@@ -486,7 +487,8 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLDriverConnect)(
             else if (StringLength1 == SQL_NTS)
                 out_buffer_length = stringBufferLength(InConnectionString);
             else
-                out_buffer_length = 1024; // ...as per SQLDriverConnect() doc: "Applications should allocate at least 1,024 characters for this buffer."
+                // As per SQLDriverConnect() doc: "Applications should allocate at least 1,024 characters for this buffer."
+                out_buffer_length = 1024;
         }
 
         connection.connect(connection_string);
@@ -1064,50 +1066,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
         // TODO: review types and set NULL everything than has to be NULL.
 
         std::stringstream query;
-        query <<"SELECT TABLE_CAT"                                                    //1
-                ",TABLE_SCHEM"                                                        //2
-                ",TABLE_NAME"                                                         //3
-                ",COLUMN_NAME"                                                        //4
-                ",case when TYPE_NAME = 'int64' then -5 "
-                "     when TYPE_NAME = 'double' then 8 "
-                "     when TYPE_NAME = 'string' then 12 "
-                "     else -1 end DATA_TYPE"                                          //5
-                ",TYPE_NAME"                                                          //6
-                ",case when TYPE_NAME = 'string' then 32000 "
-                "      when TYPE_NAME = 'double' then 15 "
-                "      when TYPE_NAME = 'int64' then 19 "
-                "      else -1 end COLUMN_SIZE"                                       //7
-                ",case when TYPE_NAME = 'string' then 32000 "
-                "      when TYPE_NAME = 'int64' then 19 "
-                "      else -1 end BUFFER_LENGTH"                                     //8
-                ",0 DECIMAL_DIGITS"                                                   //9
-                ",10 NUM_PREC_RADIX"                                                  //10
-                ",1 NULLABLE"                                                         //11
-                ",'' REMARKS"                                                         //12
-                ",'' COLUMN_DEF"                                                      //13
-                ",case when TYPE_NAME = 'int64' then -5 "
-                "      when TYPE_NAME = 'double' then 8 "
-                "      when TYPE_NAME = 'string' then 12 "
-                "      else -1 end SQL_DATA_TYPE"                                     //14
-                ",0 SQL_DATETIME_SUB"                                                 //15
-                ",case when TYPE_NAME = 'string' then 32000 "
-                "      else null end CHAR_OCTET_LENGTH"                               //16
-                ",1 ORDINAL_POSITION"                                                 //17
-                ",'YES' IS_NULLABLE"                                                  //18
-                " FROM Metadata.`Dataset` ds"
-                " JOIN Metadata.`Datatype` dt ON ds.DatatypeDataverseName = dt.DataverseName"
-                " AND ds.DatatypeName = dt.DatatypeName"
-                " UNNEST dt.Derived.Record.Fields AS field AT fieldpos LEFT"
-                " JOIN Metadata.`Datatype` dt2 ON field.FieldType = dt2.DatatypeName"
-                " AND ds.DataverseName = dt2.DataverseName"
-                " AND dt2.Derived IS KNOWN"
-                " LET dvname = decode_dataverse_name(ds.DataverseName),"
-                " TABLE_CAT = dvname[0],"
-                " TABLE_SCHEM = case array_length(dvname) when 1 then null else dvname[1] end,"
-                " TABLE_NAME = ds.DatasetName,"
-                " TYPE_NAME =field.FieldType,"
-                " COLUMN_NAME = field.FieldName"
-                " WHERE (ARRAY_LENGTH(dt.Derived.Record.Fields) > 0)";
+        query << query_sql_columns;
         // Completely ommit the condition part of the query, if the value of SQL_ATTR_METADATA_ID is SQL_TRUE
         // (i.e., values for the components are not patterns), and the component hasn't been supplied at all
         // (i.e. is nullptr; note, that actual empty strings are considered "supplied".)
@@ -1193,7 +1152,8 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLNativeSql)(HDBC connection_handle
 
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_DBC, connection_handle, [&](Connection & connection) {
         std::string query_str = toUTF8(query, query_length);
-        return fillOutputString<SQLTCHAR>(query_str, out_query, out_query_max_length, out_query_length, false);
+        std::string finalQuery = connection.handleNativeSql(query_str);
+        return fillOutputString<SQLTCHAR>(finalQuery, out_query, out_query_max_length, out_query_length, false);
     });
 }
 
@@ -1206,14 +1166,45 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLCloseCursor)(HSTMT statement_handle) {
     });
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLBrowseConnect)(HDBC connection_handle,
-    SQLTCHAR * szConnStrIn,
-    SQLSMALLINT cbConnStrIn,
-    SQLTCHAR * szConnStrOut,
-    SQLSMALLINT cbConnStrOutMax,
-    SQLSMALLINT * pcbConnStrOut) {
-    LOG(__FUNCTION__);
-    return SQL_ERROR;
+SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLBrowseConnect)(
+    SQLHDBC ConnectionHandle,
+    SQLTCHAR * InConnectionString,
+    SQLSMALLINT StringLength1,
+    SQLTCHAR * OutConnectionString,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT * StringLength2Ptr
+    ) {
+    return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_DBC, ConnectionHandle, [&](Connection & connection) {
+        std::string outputString;
+        switch (connection.browseConnectStep)
+            {
+            case 0:
+                connection.browseResult += toUTF8(InConnectionString, StringLength1);
+                connection.browseConnectStep += 1;
+                outputString += "SERVER:Server={localhost};UID:Login ID=?;PWD:Password=?;*APP:AppName=?;*WSID:WorkStation ID=?;";
+                fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
+                return SQL_NEED_DATA;
+            
+            case 1:
+                connection.browseResult += ";";
+                connection.browseResult += toUTF8(InConnectionString, StringLength1);
+                outputString += "*DATABASE:Database={`travel-sample`.`inventory`·};*LANGUAGE:Language={us_english,Franais};";
+                connection.browseConnectStep += 1;
+                fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
+                return SQL_NEED_DATA;
+            
+            case 2:
+                connection.browseResult += ";";
+                connection.browseResult += toUTF8(InConnectionString, StringLength1);
+                outputString += connection.browseResult;
+                connection.connect(connection.browseResult);
+                fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
+                return SQL_SUCCESS;
+
+            default:
+                return SQL_ERROR;
+            }
+    });
 }
 
 SQLRETURN SQL_API EXPORTED_FUNCTION(SQLCancel)(
@@ -1249,7 +1240,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLGetFunctions)(HDBC connection_handle, SQL
 #if defined(WORKAROUND_ENABLE_DEFINE_SQLBindParam)
             SET_EXISTS(SQL_API_SQLBINDPARAM);
 #endif
-            //SET_EXISTS(SQL_API_SQLBROWSECONNECT);
+            SET_EXISTS(SQL_API_SQLBROWSECONNECT);
             //SET_EXISTS(SQL_API_SQLBULKOPERATIONS);
             SET_EXISTS(SQL_API_SQLCANCEL);
             //SET_EXISTS(SQL_API_SQLCANCELHANDLE);
@@ -1270,7 +1261,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLGetFunctions)(HDBC connection_handle, SQL
             //SET_EXISTS(SQL_API_SQLEXTENDEDFETCH);
             SET_EXISTS(SQL_API_SQLFETCH);
             SET_EXISTS(SQL_API_SQLFETCHSCROLL);
-            //SET_EXISTS(SQL_API_SQLFOREIGNKEYS);
+            SET_EXISTS(SQL_API_SQLFOREIGNKEYS);
             SET_EXISTS(SQL_API_SQLFREEHANDLE);
             SET_EXISTS(SQL_API_SQLFREESTMT);
             SET_EXISTS(SQL_API_SQLGETCONNECTATTR);
@@ -1291,9 +1282,9 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLGetFunctions)(HDBC connection_handle, SQL
             SET_EXISTS(SQL_API_SQLNUMRESULTCOLS);
             //SET_EXISTS(SQL_API_SQLPARAMDATA);
             SET_EXISTS(SQL_API_SQLPREPARE);
-            //SET_EXISTS(SQL_API_SQLPRIMARYKEYS);
-            //SET_EXISTS(SQL_API_SQLPROCEDURECOLUMNS);
-            //SET_EXISTS(SQL_API_SQLPROCEDURES);
+            SET_EXISTS(SQL_API_SQLPRIMARYKEYS);
+            SET_EXISTS(SQL_API_SQLPROCEDURECOLUMNS);
+            SET_EXISTS(SQL_API_SQLPROCEDURES);
             //SET_EXISTS(SQL_API_SQLPUTDATA);
             SET_EXISTS(SQL_API_SQLROWCOUNT);
             SET_EXISTS(SQL_API_SQLSETCONNECTATTR);
@@ -1309,23 +1300,9 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLGetFunctions)(HDBC connection_handle, SQL
             SET_EXISTS(SQL_API_SQLTABLES);
 
             return SQL_SUCCESS;
-        } else if (FunctionId == SQL_API_ALL_FUNCTIONS) {
-            //memset(Supported, 0, sizeof(Supported[0]) * 100);
-            return SQL_ERROR;
         } else {
-/*
-		switch (FunctionId) {
-			case SQL_API_SQLBINDCOL:
-				*Supported = SQL_TRUE;
-				break;
-			default:
-				*Supported = SQL_FALSE;
-				break;
-		}
-*/
             return SQL_ERROR;
         }
-
         return SQL_ERROR;
     };
 
@@ -1420,56 +1397,300 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLExtendedFetch)(
     return SQL_ERROR;
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(HSTMT hstmt,
-    SQLTCHAR * szPkCatalogName,
-    SQLSMALLINT cbPkCatalogName,
-    SQLTCHAR * szPkSchemaName,
-    SQLSMALLINT cbPkSchemaName,
-    SQLTCHAR * szPkTableName,
-    SQLSMALLINT cbPkTableName,
-    SQLTCHAR * szFkCatalogName,
-    SQLSMALLINT cbFkCatalogName,
-    SQLTCHAR * szFkSchemaName,
-    SQLSMALLINT cbFkSchemaName,
-    SQLTCHAR * szFkTableName,
-    SQLSMALLINT cbFkTableName) {
+SQLRETURN SQL_API EXPORTED_FUNCTION(SQLForeignKeys)(
+    SQLHSTMT StatementHandle,
+    SQLTCHAR * PKCatalogName,
+    SQLSMALLINT NameLength1,
+    SQLTCHAR * PKSchemaName,
+    SQLSMALLINT NameLength2,
+    SQLTCHAR * PKTableName,
+    SQLSMALLINT NameLength3,
+    SQLTCHAR * FKCatalogName,
+    SQLSMALLINT NameLength4,
+    SQLTCHAR * FKSchemaName,
+    SQLSMALLINT NameLength5,
+    SQLTCHAR * FKTableName,
+    SQLSMALLINT NameLength6
+) {
     LOG(__FUNCTION__);
-    return SQL_ERROR;
+    auto func = [&](Statement & statement) {
+        const auto pkCatalog = (PKCatalogName ? toUTF8(PKCatalogName, NameLength1) : statement.getParent().database);
+        const auto pkSchema = (PKSchemaName ? toUTF8(PKSchemaName, NameLength2) : SQL_ALL_SCHEMAS);
+        const auto pkTable = (PKTableName ? toUTF8(PKTableName, NameLength3) : "%");
+
+        const auto fkCatalog = (FKCatalogName ? toUTF8(FKCatalogName, NameLength4) : statement.getParent().database);
+        const auto fkSchema = (FKSchemaName ? toUTF8(FKSchemaName, NameLength5) : SQL_ALL_SCHEMAS);
+        const auto fkTable = (FKTableName ? toUTF8(FKTableName, NameLength6) : "%");
+
+        std::stringstream query;
+
+        // Three cases for SQLForeignKeys
+        // CASE-1: *PKTableName contains a table name
+        // CASE-2: *FKTableName contains a table name
+        // CASE-3: both *PKTableName and *FKTableName contain table names
+
+        if (PKTableName && FKTableName) {
+            // CASE - 3
+            query << query_foreign_keys_fk_with_pk;
+            query << SQL_SET_NULL << ",DELETE_RULE = " << SQL_SET_NULL << ", DEFERRABILITY = " << SQL_NOT_DEFERRABLE << " WHERE ";
+
+            if (FKCatalogName) {
+                query << " (FKTABLE_CAT is Not Null) AND coalesce(FKTABLE_CAT, '') = '" << escapeForSQL(fkCatalog) << "'";
+            }
+
+            if (FKSchemaName) {
+                query << " AND (FKTABLE_SCHEM is Not Null) AND coalesce(FKTABLE_SCHEM, '') = '" << escapeForSQL(fkSchema) << "'";
+            }
+
+            if (FKTableName) {
+                query << " AND (FKTABLE_NAME is Not Null) AND coalesce(FKTABLE_NAME, '') = '" << escapeForSQL(fkTable) << "' ";
+            }
+
+            if (PKCatalogName) {
+                query << " AND (PKTABLE_CAT is Not Null) AND coalesce(PKTABLE_CAT, '') = '" << escapeForSQL(pkCatalog) << "'";
+            }
+
+            if (PKSchemaName) {
+                query << " AND (PKTABLE_SCHEM is Not Null) AND coalesce(PKTABLE_SCHEM, '') = '" << escapeForSQL(pkSchema) << "'";
+            }
+
+            if (PKTableName) {
+                query << " AND (PKTABLE_NAME is Not Null) AND coalesce(PKTABLE_NAME, '') = '" << escapeForSQL(pkTable) << "' ";
+            }
+
+            query << query_foreign_keys_fk_with_pk_where;
+
+
+        } else if (PKTableName) {
+            // CASE - 1
+            query << query_foreign_keys_pk;
+            query << SQL_SET_NULL << ",DELETE_RULE = " << SQL_SET_NULL << ", DEFERRABILITY = " << SQL_NOT_DEFERRABLE << " WHERE ";
+            if (PKCatalogName) {
+                query << " (PKTABLE_CAT is Not Null) AND coalesce(PKTABLE_CAT, '') = '" << escapeForSQL(pkCatalog) << "'";
+            }
+
+            if (PKSchemaName) {
+                query << " AND (PKTABLE_SCHEM is Not Null) AND coalesce(PKTABLE_SCHEM, '') = '" << escapeForSQL(pkSchema) << "'";
+            }
+
+            if (PKTableName) {
+                query << " AND (PKTABLE_NAME is Not Null) AND coalesce(PKTABLE_NAME, '') = '" << escapeForSQL(pkTable) << "' ";
+            }
+
+            query << query_foreign_keys_pk_where;
+
+
+        } else if (FKTableName) {
+            // CASE - 2
+            query << query_foreign_keys_fk;
+            query << SQL_SET_NULL << ",DELETE_RULE = " << SQL_SET_NULL << ", DEFERRABILITY = " << SQL_NOT_DEFERRABLE << " WHERE ";
+
+            if (FKCatalogName) {
+                query << " (FKTABLE_CAT is Not Null) AND coalesce(FKTABLE_CAT, '') = '" << escapeForSQL(fkCatalog) << "'";
+            }
+
+            if (FKSchemaName) {
+                query << " AND (FKTABLE_SCHEM is Not Null) AND coalesce(FKTABLE_SCHEM, '') = '" << escapeForSQL(fkSchema) << "'";
+            }
+
+            if (FKTableName) {
+                query << " AND (FKTABLE_NAME is Not Null) AND coalesce(FKTABLE_NAME, '') = '" << escapeForSQL(fkTable) << "' ";
+            }
+
+            query << query_foreign_keys_fk_where;
+
+        }
+        statement.executeQuery(query.str());
+        return SQL_SUCCESS;
+
+    };
+    return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLPrimaryKeys)(HSTMT hstmt,
-    SQLTCHAR * szCatalogName,
-    SQLSMALLINT cbCatalogName,
-    SQLTCHAR * szSchemaName,
-    SQLSMALLINT cbSchemaName,
-    SQLTCHAR * szTableName,
-    SQLSMALLINT cbTableName) {
+
+SQLRETURN SQL_API EXPORTED_FUNCTION(SQLPrimaryKeys)(
+    SQLHSTMT StatementHandle,
+    SQLTCHAR * CatalogName,
+    SQLSMALLINT NameLength1,
+    SQLTCHAR * SchemaName,
+    SQLSMALLINT NameLength2,
+    SQLTCHAR * TableName,
+    SQLSMALLINT NameLength3
+) {
     LOG(__FUNCTION__);
-    return SQL_ERROR;
+    auto func = [&](Statement & statement) {
+        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().database);
+        const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
+        const auto table = (TableName ? toUTF8(TableName, NameLength3) : "%");
+        std::stringstream query;
+        query << query_primary_keys;
+
+        const auto case_insensitive = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_TRUE);
+
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(catalog))
+                query << " (TABLE_CAT is Not Null) AND coalesce(TABLE_CAT, '') = '" << escapeForSQL(catalog) << "'";
+        }
+        else if (CatalogName) {
+            query << " (TABLE_CAT is Not Null) AND coalesce(lower(TABLE_CAT), '') = lower('" << escapeForSQL(catalog) << "')";
+        }
+
+        // Note, that 'schema' variable will be set to "%" above, even if SchemaName == nullptr.
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(schema))
+                query << " AND (TABLE_SCHEM is Not Null) AND coalesce(TABLE_SCHEM, '') = '" << escapeForSQL(schema) << "'";
+        }
+        else if (SchemaName) {
+            query << " AND (TABLE_SCHEM is Not Null) AND coalesce(lower(TABLE_SCHEM), '') = lower('" << escapeForSQL(schema) << "')";
+        }
+
+        // Note, that 'table' variable will be set to "%" above, even if TableName == nullptr.
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(table))
+                query << " AND (TABLE_NAME is Not Null) AND coalesce(TABLE_NAME, '') =  '" << escapeForSQL(table) << "'";
+        }
+        else if (TableName) {
+            query << " AND (TABLE_NAME is Not Null) AND coalesce(lower(TABLE_NAME), '') = lower('" << escapeForSQL(table) << "')";
+        }
+
+        query << " ORDER BY TABLE_CAT, TABLE_SCHEM, TABLE_NAME";
+
+
+        statement.executeQuery(query.str());
+        return SQL_SUCCESS;
+
+    };
+    return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedureColumns)(HSTMT hstmt,
-    SQLTCHAR * szCatalogName,
-    SQLSMALLINT cbCatalogName,
-    SQLTCHAR * szSchemaName,
-    SQLSMALLINT cbSchemaName,
-    SQLTCHAR * szProcName,
-    SQLSMALLINT cbProcName,
-    SQLTCHAR * szColumnName,
-    SQLSMALLINT cbColumnName) {
+SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedureColumns)(
+    SQLHSTMT StatementHandle,
+    SQLTCHAR * CatalogName,
+    SQLSMALLINT NameLength1,
+    SQLTCHAR * SchemaName,
+    SQLSMALLINT NameLength2,
+    SQLTCHAR * ProcName,
+    SQLSMALLINT NameLength3,
+    SQLTCHAR * ColumnName,
+    SQLSMALLINT NameLength4
+) {
     LOG(__FUNCTION__);
-    return SQL_ERROR;
+    auto func = [&](Statement & statement) {
+        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().database);
+        const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
+        const auto proc = (ProcName ? toUTF8(ProcName, NameLength3) : "%");
+        const auto column = (ColumnName ? toUTF8(ColumnName, NameLength4) : "%");
+
+        std::stringstream query;
+        query << query_procedure_columns;
+        query << SQL_PARAM_TYPE_UNKNOWN << ", DATA_TYPE = ";
+        query << SQL_UNKNOWN_TYPE << ", TYPE_NAME = 'UNKNOWN', NULLABLE = ";
+        query << SQL_NULLABLE_UNKNOWN << ", REMARKS = 'Default Remarks', SQL_DATA_TYPE = ";
+        query << SQL_UNKNOWN_TYPE << ", ORDINAL_POSITION = pos, "
+    "    IS_NULLABLE = ''"
+    "    WHERE ";
+        
+        const auto case_insensitive = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_TRUE);
+
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(catalog))
+                query << " (PROCEDURE_CAT is Not Null) AND coalesce(PROCEDURE_CAT, '') = '" << escapeForSQL(catalog) << "'";
+        }
+        else if (CatalogName) {
+            query << " (PROCEDURE_CAT is Not Null) AND coalesce(lower(PROCEDURE_CAT), '') = lower('" << escapeForSQL(catalog) << "')";
+        }
+
+        // Note, that 'schema' variable will be set to "%" above, even if SchemaName == nullptr.
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(schema))
+                query << " AND (PROCEDURE_SCHEM is Not Null) AND PROCEDURE_SCHEM LIKE '" << escapeForSQL(schema) << "'";
+        }
+        else if (SchemaName) {
+            query << " AND (PROCEDURE_SCHEM is Not Null) AND lower(PROCEDURE_SCHEM) LIKE lower('" << escapeForSQL(schema) << "')";
+        }
+
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(proc))
+                query << " AND PROCEDURE_NAME LIKE '" << escapeForSQL(proc) << "'";
+        }
+        else if (ProcName) {
+            query << " AND (PROCEDURE_NAME is Not Null) AND lower(PROCEDURE_NAME) LIKE lower('" << escapeForSQL(proc) << "')";
+        }
+
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(column))
+                query << " AND COLUMN_NAME LIKE '" << escapeForSQL(column) << "'";
+        }
+        else if (ColumnName) {
+            query << " AND (COLUMN_NAME is Not Null) AND lower(COLUMN_NAME) LIKE lower('" << escapeForSQL(column) << "')";
+        }
+
+        query << " ORDER BY PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME, COLUMN_TYPE";
+        
+        statement.executeQuery(query.str());
+
+        return SQL_SUCCESS;
+
+    };
+
+    return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedures)(HSTMT hstmt,
-    SQLTCHAR * szCatalogName,
-    SQLSMALLINT cbCatalogName,
-    SQLTCHAR * szSchemaName,
-    SQLSMALLINT cbSchemaName,
-    SQLTCHAR * szProcName,
-    SQLSMALLINT cbProcName) {
+SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedures)(
+    SQLHSTMT StatementHandle,
+    SQLTCHAR * CatalogName,
+    SQLSMALLINT NameLength1,
+    SQLTCHAR * SchemaName,
+    SQLSMALLINT NameLength2,
+    SQLTCHAR * ProcName,
+    SQLSMALLINT NameLength3
+) {
     LOG(__FUNCTION__);
-    return SQL_ERROR;
+    auto func = [&](Statement & statement) {
+        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().database);
+        const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
+        const auto proc = (ProcName ? toUTF8(ProcName, NameLength3) : "%");
+
+        std::stringstream query;
+        query << query_procedures;
+
+        const auto case_insensitive = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_FALSE);
+
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(catalog))
+                query << " (PROCEDURE_CAT is Not Null) AND coalesce(PROCEDURE_CAT, '') = '" << escapeForSQL(catalog) << "'";
+        }
+        else if (CatalogName) {
+            query << " (PROCEDURE_CAT is Not Null) AND coalesce(lower(PROCEDURE_CAT), '') = lower('" << escapeForSQL(catalog) << "')";
+        }
+
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(schema))
+                query << " AND PROCEDURE_SCHEM LIKE '" << escapeForSQL(schema) << "'";
+        }
+        else if (SchemaName) {
+            query << " AND (PROCEDURE_SCHEM is Not Null) AND lower(PROCEDURE_SCHEM) LIKE lower('" << escapeForSQL(schema) << "')";
+
+        }
+
+        // Note, that 'table' variable will be set to "%" above, even if TableName == nullptr.
+        if (case_insensitive) {
+            if (!isMatchAnythingCatalogFnPatternArg(proc))
+                query << " AND PROCEDURE_NAME LIKE '" << escapeForSQL(proc) << "'";
+        }
+        else if (ProcName) {
+            query << " AND (PROCEDURE_NAME is Not Null) AND lower(PROCEDURE_NAME) LIKE lower('" << escapeForSQL(proc) << "')";
+        }
+
+        query << " ORDER BY PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME";
+
+        statement.executeQuery(query.str());
+        return SQL_SUCCESS;
+
+    
+    };
+
+    return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
 }
 
 SQLRETURN SQL_API EXPORTED_FUNCTION(SQLSetPos)(HSTMT hstmt, SQLSETPOSIROW irow, SQLUSMALLINT fOption, SQLUSMALLINT fLock) {

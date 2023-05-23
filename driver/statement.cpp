@@ -13,6 +13,7 @@
 #include <Poco/UUID.h>
 #include <Poco/UUIDGenerator.h>
 
+#include "driver/metadata.h"
 #include <cctype>
 #include <cstdio>
 #include <sstream>
@@ -153,7 +154,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
         }
 
         const auto param_name = getParamFinalName(i);
-        uri.addQueryParameter("param_" + param_name, value);
+        uri.addQueryParameter("param_" + param_name, value);//only for CH
     }
 
     const auto prepared_query = buildFinalQuery(param_bindings);
@@ -232,7 +233,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
         payload << "{\"signature\":true,\"client-type\":\"jdbc\",\"plan-format\":\"string\",\"format\":\"lossless-adm\",\"max-warnings\":"
                    "10,\"sql-compat\":true,"
                    "\"statement\":\""
-                << query;
+                << prepared_query;
         if (cbas_params_args.size()) {
             payload << "\","
                     << "\"args\":"
@@ -360,7 +361,6 @@ void Statement::extractParametersinfo() {
             case '@': {
                 if (quoted_by == '\0') {
                     ParamInfo param_info;
-                    if (!getParent().isCB) {
                     param_info.name = '@';
                     for (std::size_t j = i + 1; j < query.size(); ++j) {
                         const char jcurr = query[j];
@@ -377,7 +377,6 @@ void Statement::extractParametersinfo() {
                     param_info.tmp_placeholder = generate_placeholder();
                     query.replace(i, param_info.name.size(), param_info.tmp_placeholder);
                     i += param_info.tmp_placeholder.size() - 1; // - 1 to compensate for's next ++i
-                    }
                     parameters.emplace_back(param_info);
                 }
                 break;
@@ -410,21 +409,16 @@ std::string Statement::buildFinalQuery(const std::vector<ParamBindingInfo>& para
                 type_info.precision = binding_info.precision;
                 type_info.scale = binding_info.scale;
                 type_info.is_nullable = (binding_info.is_nullable || binding_info.value == nullptr);
-
-                param_type = convertSQLOrCTypeToDataSourceType(type_info);
+                param_type = convertSQLOrCTypeToDataSourceType(type_info);                
             }
-
             const auto pos = prepared_query.find(param_info.tmp_placeholder);
             if (pos == std::string::npos)
                 throw SqlException("COUNT field incorrect", "07002");
-
             const auto param_name = getParamFinalName(i);
             const std::string param_placeholder = "{" + param_name + ":" + param_type + "}";
             prepared_query.replace(pos, param_info.tmp_placeholder.size(), param_placeholder);
         }
-    }
-
-
+    } 
     return prepared_query;
 }
 
@@ -675,48 +669,7 @@ void Statement::queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPA
 
 void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
   result_reader.reset();
-  cbCookie.queryMeta =
-          "{\"signature\":{\
-              \"name\":[\"TYPE_NAME\",\
-                        \"DATA_TYPE\",\
-                        \"COLUMN_SIZE\",\
-                        \"LITERAL_PREFIX\",\
-                        \"LITERAL_SUFFIX\",\
-                        \"CREATE_PARAMS\",\
-                        \"NULLABLE\",\
-                        \"CASE_SENSITIVE\",\
-                        \"SEARCHABLE\",\
-                        \"UNSIGNED_ATTRIBUTE\",\
-                        \"FIXED_PREC_SCALE\",\
-                        \"AUTO_UNIQUE_VALUE\",\
-                        \"LOCAL_TYPE_NAME\",\
-                        \"MINIMUM_SCALE\",\
-                        \"MAXIMUM_SCALE\",\
-                        \"SQL_DATA_TYPE\",\
-                        \"SQL_DATETIME_SUB\",\
-                        \"NUM_PREC_RADIX\",\
-                        \"INTERVAL_PRECISION\"\
-                        ]\
-              ,\"type\":[\"string?\",\
-                        \"int16?\",\
-                        \"int32?\",\
-                        \"string?\",\
-                        \"string?\",\
-                        \"string?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"string?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int16?\",\
-                        \"int32?\",\
-                        \"int16?\"\
-                        ]}}";
+  cbCookie.queryMeta = type_info_query_meta;
 
   cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"boolean\",\
                                 \"DATA_TYPE\":" << SQL_SMALLINT << ",\
@@ -884,4 +837,9 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                       *in,
                       std::move(mutator),
                       cbCookie);
+}
+std::string Statement::nativeSql(const std::string & q) {
+    prepareQuery(q);
+    is_prepared = false;
+    return query;
 }
