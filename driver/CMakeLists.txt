@@ -57,6 +57,7 @@ add_library (${libname}-impl STATIC
     utils/unicode_converter.cpp
     utils/conversion_context.cpp
     utils/ieee_754_converter.cpp
+    utils/lossless-adm_to_human-readable_format.cpp
 
     config/config.cpp
 

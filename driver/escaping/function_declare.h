@@ -63,23 +63,21 @@
     DECLARE2(CURRENT_TIMESTAMP, ""), // special handling
     DECLARE2(CURDATE, "today"),
     DECLARE2(CURRENT_DATE, "today"),
-    DECLARE2(DAYOFMONTH, "toDayOfMonth"),
-    DECLARE2(DAYOFWEEK, "" /* "toDayOfWeek" */), // special handling
-    DECLARE2(DAYOFYEAR, " toDayOfYear"),
+    DECLARE2(DAYOFMONTH, "GET_DAY"),
+    DECLARE2(DAYOFWEEK, "DAY_OF_WEEK"), // special handling
+    DECLARE2(DAYOFYEAR, "DAY_OF_YEAR"),
     DECLARE2(EXTRACT, "EXTRACT"), // Do not touch extract inside {fn ... }
-    DECLARE2(HOUR, "toHour"),
-    DECLARE2(MINUTE, "toMinute"),
-    DECLARE2(MONTH, "toMonth"),
+    DECLARE2(HOUR, "GET_HOUR"),
+    DECLARE2(MINUTE, "GET_MINUTE"),
+    DECLARE2(MONTH, "GET_MONTH"),
     DECLARE2(NOW, "now"),
-    DECLARE2(SECOND, "toSecond"),
+    DECLARE2(SECOND, "GET_SECOND"),
     DECLARE2(TIMESTAMPADD, ""), // special handling
     DECLARE2(TIMESTAMPDIFF, "dateDiff"),
-    DECLARE2(WEEK, "toISOWeek"),
-    DECLARE2(SQL_TSI_QUARTER, "toQuarter"),
-    DECLARE2(YEAR, "toYear"),
+    DECLARE2(WEEK, "WEEK_OF_YEAR"),
+    DECLARE2(SQL_TSI_QUARTER, "QUARTER_OF_YEAR"),
+    DECLARE2(YEAR, "GET_YEAR"),
 
     // DECLARE2(DATABASE, ""),
     DECLARE2(IFNULL, "ifNull"),
     // DECLARE2(USER, ""),
-
-    // TODO.

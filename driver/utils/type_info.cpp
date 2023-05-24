@@ -44,6 +44,12 @@ const std::map<std::string, std::string> cb_to_ch_types_g = {
     {"int32", "Int32"},
     {"int16?", "Int16"},
     {"int16", "Int16"},
+    {"date","Date"},
+    {"date?","Date"},
+    {"time","Time"},
+    {"time?","Time"},
+    {"datetime","DateTime"},
+    {"datetime?","DateTime"}
 };
 
 const std::map<std::string, uint8_t> types_id_g = {{"Float64", 12}};
@@ -537,7 +543,7 @@ std::string convertSQLTypeToDataSourceType(const BoundTypeInfo & type_info) {
             break;
 
         case SQL_TYPE_TIME:
-            type_name = "LowCardinality(" + set_nullability("String") + ")";
+            type_name = set_nullability("Time");
             break;
 
         case SQL_TYPE_TIMESTAMP:

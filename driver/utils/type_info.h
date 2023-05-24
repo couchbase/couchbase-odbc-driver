@@ -16,6 +16,9 @@
 
 #define lengthof(a) (sizeof(a) / sizeof(a[0]))
 #define LOSSLESS_ADM_DELIMETER ':'
+#define LOSSLESS_ADM_DELIMETER_DATE "11:"
+#define LOSSLESS_ADM_DELIMETER_TIME "12:"
+#define LOSSLESS_ADM_DELIMETER_DATETIME "10:"
 
 struct TypeInfo {
     std::string sql_type_name;
@@ -964,13 +967,14 @@ namespace value_manip {
         using DestinationType = SQL_TIME_STRUCT;
 
         static inline void convert(const SourceType & src, DestinationType & dest) {
-            if (src.size() != 10 && (src.size() < 19 || src.size() > 29))
+            if (src.size() != 8 && (src.size() < 19 || src.size() > 29)){
                 throw std::runtime_error("Cannot interpret '" + src + "' as TIME");
+            }
 
-            if (src.size() > 10) {
-                dest.hour = (src[11] - '0') * 10 + (src[12] - '0');
-                dest.minute = (src[14] - '0') * 10 + (src[15] - '0');
-                dest.second = (src[17] - '0') * 10 + (src[18] - '0');
+            if (src.size() == 8) {
+                dest.hour = (src[0] - '0') * 10 + (src[1] - '0');
+                dest.minute = (src[3] - '0') * 10 + (src[4] - '0');
+                dest.second = (src[6] - '0') * 10 + (src[7] - '0');
             }
             else {
                 dest.hour = 0;

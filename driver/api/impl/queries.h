@@ -211,11 +211,17 @@ const char query_sql_columns[] = "SELECT TABLE_CAT"                             
                 ",case when TYPE_NAME = 'int64' then -5 "
                 "     when TYPE_NAME = 'double' then 8 "
                 "     when TYPE_NAME = 'string' then 12 "
+                "     when TYPE_NAME = 'date' then 91 "
+                "     when TYPE_NAME = 'time' then 92 "
+                "     when TYPE_NAME = 'datetime' then 93 "
                 "     else -1 end DATA_TYPE"                                          //5
                 ",TYPE_NAME"                                                          //6
                 ",case when TYPE_NAME = 'string' then 32000 "
                 "      when TYPE_NAME = 'double' then 15 "
                 "      when TYPE_NAME = 'int64' then 19 "
+                "      when TYPE_NAME = 'date' then 10 "
+                "      when TYPE_NAME = 'time' then 8 "
+                "      when TYPE_NAME = 'datetime' then 23 "
                 "      else -1 end COLUMN_SIZE"                                       //7
                 ",case when TYPE_NAME = 'string' then 32000 "
                 "      when TYPE_NAME = 'int64' then 19 "
@@ -228,8 +234,14 @@ const char query_sql_columns[] = "SELECT TABLE_CAT"                             
                 ",case when TYPE_NAME = 'int64' then -5 "
                 "      when TYPE_NAME = 'double' then 8 "
                 "      when TYPE_NAME = 'string' then 12 "
+                "      when TYPE_NAME = 'date' then 9 "
+                "      when TYPE_NAME = 'time' then 9 "
+                "      when TYPE_NAME = 'datetime' then 9 "
                 "      else -1 end SQL_DATA_TYPE"                                     //14
-                ",0 SQL_DATETIME_SUB"                                                 //15
+                ",case when TYPE_NAME = 'date' then 1 "
+                "      when TYPE_NAME = 'time' then 2 "
+                "      when TYPE_NAME = 'datetime' then 3 "
+                "      else 0 end SQL_DATETIME_SUB"                                   //15
                 ",case when TYPE_NAME = 'string' then 32000 "
                 "      else null end CHAR_OCTET_LENGTH"                               //16
                 ",1 ORDINAL_POSITION"                                                 //17

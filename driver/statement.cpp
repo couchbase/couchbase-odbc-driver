@@ -831,6 +831,66 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                                 \"NUM_PREC_RADIX\":10,\
                                 \"INTERVAL_PRECISION\":32767\
                               }" << "\n";
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"date\",\
+                                \"DATA_TYPE\":" << SQL_TYPE_DATE << ",\
+                                \"COLUMN_SIZE\":10,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_DATETIME << ",\
+                                \"SQL_DATETIME_SUB\":" << SQL_CODE_DATE << ",\
+                                \"NUM_PREC_RADIX\":null,\
+                                \"INTERVAL_PRECISION\":null\
+                              }" << "\n";
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"time\",\
+                                \"DATA_TYPE\":" << SQL_TYPE_TIME << ",\
+                                \"COLUMN_SIZE\":8,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_DATETIME << ",\
+                                \"SQL_DATETIME_SUB\":" << SQL_CODE_TIME << ",\
+                                \"NUM_PREC_RADIX\":null,\
+                                \"INTERVAL_PRECISION\":null\
+                              }" << "\n";
+    cbCookie.queryResultStrm << "{\"TYPE_NAME\":\"datetime\",\
+                                \"DATA_TYPE\":" << SQL_TYPE_TIMESTAMP << ",\
+                                \"COLUMN_SIZE\":23,\
+                                \"LITERAL_PREFIX\":null,\
+                                \"LITERAL_SUFFIX\":null,\
+                                \"CREATE_PARAMS\":null,\
+                                \"NULLABLE\":" << SQL_NULLABLE << ",\
+                                \"CASE_SENSITIVE\":" << SQL_FALSE << ",\
+                                \"SEARCHABLE\":" << SQL_SEARCHABLE << ",\
+                                \"UNSIGNED_ATTRIBUTE\":" << SQL_FALSE << ",\
+                                \"FIXED_PREC_SCALE\":" << SQL_FALSE << ",\
+                                \"AUTO_UNIQUE_VALUE\":null,\
+                                \"LOCAL_TYPE_NAME\":null,\
+                                \"MINIMUM_SCALE\":0,\
+                                \"MAXIMUM_SCALE\":0,\
+                                \"SQL_DATA_TYPE\":" << SQL_DATETIME << ",\
+                                \"SQL_DATETIME_SUB\":" << SQL_CODE_TIMESTAMP << ",\
+                                \"NUM_PREC_RADIX\":null,\
+                                \"INTERVAL_PRECISION\":null\
+                              }" << "\n";
   result_reader = make_result_reader(
                       "CBAS", //response->get("X-Couchbase-Format", connection.default_format),
                       "crap", //response->get("X-Couchbase-Timezone", Poco::Timezone::name()),

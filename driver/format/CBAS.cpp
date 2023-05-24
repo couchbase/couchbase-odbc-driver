@@ -3,6 +3,7 @@
 #include "driver/utils/ieee_754_converter.h"
 #include "driver/utils/resize_without_initialization.h"
 #include "driver/utils/utils.h"
+#include "driver/utils/lossless-adm_to_human-readable_format.h"
 
 CBASResultSet::CBASResultSet(
     const std::string & timezone, AmortizedIStreamReader & stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie)
@@ -90,7 +91,7 @@ bool CBASResultSet::readNextRow(Row & row) {
                 value_manip::to_null(strVal.value);
 
                 bool is_null = false;
-                if (col->type == cJSON_String) { // Handle String and Double
+                if (col->type == cJSON_String) { // Handle String, Double, Date, Time, DateTime
                     strVal.value = col->valuestring;
                     if (column_info.type == "String") {
                         if (strVal.value[0] == LOSSLESS_ADM_DELIMETER) {
@@ -107,6 +108,33 @@ bool CBASResultSet::readNextRow(Row & row) {
                         oss << LOSSLESS_ADM_DELIMETER;
                         if (strVal.value.substr(0, 3) == oss.str()) {
                             strVal.value = strVal.value.substr(3);
+                        }
+                    }
+                    else if(column_info.type == "Date"){
+                        if(strVal.value.substr(0,3) == LOSSLESS_ADM_DELIMETER_DATE){
+                            std::string daysInString = strVal.value.substr(3,strVal.value.length());
+                            std::int32_t daysInt = std::stoi(daysInString);
+
+                            std::string dateInCorrectFormat = convertEpochDaysToDateString(daysInt);
+                            strVal.value = dateInCorrectFormat;
+                        }
+                    }
+                    else if (column_info.type == "Time"){
+                        if(strVal.value.substr(0,3) == LOSSLESS_ADM_DELIMETER_TIME){
+                            std::string timeInString = strVal.value.substr(3);
+
+                            std::int64_t timeLong = std::stoi(timeInString);
+                            std::string timeInCorrectFormat = convertEpochMillisecondsToTimeString(timeLong);
+                            strVal.value = timeInCorrectFormat;
+                        }
+                    }
+                    else if (column_info.type == "DateTime"){
+                        if(strVal.value.substr(0,3) == LOSSLESS_ADM_DELIMETER_DATETIME){
+                            std::string datetimeInString = strVal.value.substr(3);
+                            long long milliseconds = std::stoll(datetimeInString);
+
+                            std::string datetimeInCorrectFormat = convertEpochMillisecondsToDateTimeString(milliseconds);
+                            strVal.value = datetimeInCorrectFormat;
                         }
                     }
                 } else if (col->type == cJSON_Number) {

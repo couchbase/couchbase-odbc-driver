@@ -1,3 +1,4 @@
+#include <windows.h>
 #include <sql.h>
 #include <sqlext.h>
 #include <stdio.h>
@@ -8,7 +9,6 @@
 int main(int argc, char * argv[]) {
     FILE *fp;
     fp = fopen("query_execution.output", "w"); // open file in write mode
-    
     SQLHENV env;
     SQLHDBC dbc;
     SQLHSTMT stmt;
@@ -41,7 +41,10 @@ int main(int argc, char * argv[]) {
     SQLCHAR stringColVal[1024];
     SQLBIGINT bigIntColVal;
     SQLSCHAR boolColVal;
-    SQLLEN doubleInd, stringInd, bigintInd, boolInd;
+    SQL_DATE_STRUCT dateColVal ;
+    SQL_TIME_STRUCT timeColVal;
+    SQL_TIMESTAMP_STRUCT datetimeColVal;
+    SQLLEN doubleInd, stringInd, bigintInd, boolInd,dateInd,timeInd,datetimeInd;
 
     if (argc == 2) {
         printf("argv[1]: %s\n", argv[1]);
@@ -94,8 +97,9 @@ int main(int argc, char * argv[]) {
                             break;
                         case SQL_BIGINT:
                             if (!check_and_print_null(nameBuff, &bigintInd, fp)) {
-                                printf("%s: %ld\n", nameBuff, bigIntColVal);
-                                fprintf(fp, "%s: %ld\n", nameBuff, bigIntColVal);
+                                //TODO : This dows not work on windows
+                                // printf("%s: %ld\n", nameBuff, bigIntColVal);
+                                // fprintf(fp, "%s: %ld\n", nameBuff, bigIntColVal);
                             }
                             break;
                         case SQL_VARCHAR:
@@ -144,8 +148,9 @@ int main(int argc, char * argv[]) {
                 case SQL_BIGINT:
                     SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_SBIGINT, (SQLPOINTER)(&bigIntColVal), (SQLLEN)0, &bigintInd);
                     if (!check_and_print_null(nameBuff, &bigintInd, fp)) {
-                        printf("%s: %ld\n", nameBuff, bigIntColVal);
-                        fprintf(fp, "%s: %ld\n", nameBuff, bigIntColVal);
+                        //TODO : This dows not work on windows
+                        // printf("%s: %ld\n", nameBuff, bigIntColVal);
+                        // fprintf(fp, "%s: %ld\n", nameBuff, bigIntColVal);
                     }
                     break;
                 case SQL_VARCHAR:
@@ -161,6 +166,37 @@ int main(int argc, char * argv[]) {
                         char * boolVal = boolColVal == 0 ? "false" : "true";
                         printf("%s: %s\n", nameBuff, boolVal);
                         fprintf(fp, "%s: %s\n", nameBuff, boolVal);
+                    }
+                    break;
+                case SQL_TYPE_DATE:
+                    SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_TYPE_DATE, (SQLPOINTER)(&dateColVal), (SQLLEN)(sizeof(dateColVal)), &dateInd);
+                    if (!check_and_print_null(nameBuff, &dateInd, fp)) {
+                        int year = dateColVal.year;
+                        int month = dateColVal.month;
+                        int day = dateColVal.day;
+                        printf("Date: %04d-%02d-%02d\n", year, month, day);
+                    }
+                    break;
+                case SQL_TYPE_TIME:
+                    SQLGetData(stmt,(SQLUSMALLINT)i,SQL_C_TYPE_TIME,(SQLPOINTER)(&timeColVal),(SQLLEN)(sizeof(timeColVal)),&timeInd);
+                    if (!check_and_print_null(nameBuff, &timeInd, fp)) {
+                        int hour = timeColVal.hour;
+                        int minute = timeColVal.minute;
+                        int second = timeColVal.second;
+                        printf("Time: %02d:%02d:%02d\n", hour, minute, second);
+                    }
+                    break;
+                case SQL_TYPE_TIMESTAMP:
+                    SQLGetData(stmt,(SQLUSMALLINT)i,SQL_C_TYPE_TIMESTAMP,(SQLPOINTER)(&datetimeColVal),(SQLLEN)(sizeof(datetimeColVal)),&datetimeInd);
+                    if (!check_and_print_null(nameBuff, &datetimeInd, fp)) {
+                        int year = datetimeColVal.year;
+                        int month = datetimeColVal.month;
+                        int day = datetimeColVal.day;
+                        int hour = datetimeColVal.hour;
+                        int minute = datetimeColVal.minute;
+                        int second = datetimeColVal.second;
+                        int fraction = datetimeColVal.fraction;
+                        printf("DateTime: %04d-%02d-%02d %02d:%02d:%02d:%03d", year, month, day,hour, minute, second,fraction);
                     }
                     break;
                 }
