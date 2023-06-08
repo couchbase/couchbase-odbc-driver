@@ -1184,7 +1184,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLBrowseConnect)(
                 outputString += "SERVER:Server={localhost};UID:Login ID=?;PWD:Password=?;*APP:AppName=?;*WSID:WorkStation ID=?;";
                 fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
                 return SQL_NEED_DATA;
-            
+
             case 1:
                 connection.browseResult += ";";
                 connection.browseResult += toUTF8(InConnectionString, StringLength1);
@@ -1192,7 +1192,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLBrowseConnect)(
                 connection.browseConnectStep += 1;
                 fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
                 return SQL_NEED_DATA;
-            
+
             case 2:
                 connection.browseResult += ";";
                 connection.browseResult += toUTF8(InConnectionString, StringLength1);
@@ -1397,7 +1397,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLExtendedFetch)(
     return SQL_ERROR;
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION(SQLForeignKeys)(
+SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(
     SQLHSTMT StatementHandle,
     SQLTCHAR * PKCatalogName,
     SQLSMALLINT NameLength1,
@@ -1508,7 +1508,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLForeignKeys)(
 }
 
 
-SQLRETURN SQL_API EXPORTED_FUNCTION(SQLPrimaryKeys)(
+SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLPrimaryKeys)(
     SQLHSTMT StatementHandle,
     SQLTCHAR * CatalogName,
     SQLSMALLINT NameLength1,
@@ -1563,7 +1563,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLPrimaryKeys)(
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedureColumns)(
+SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedureColumns)(
     SQLHSTMT StatementHandle,
     SQLTCHAR * CatalogName,
     SQLSMALLINT NameLength1,
@@ -1589,7 +1589,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedureColumns)(
         query << SQL_UNKNOWN_TYPE << ", ORDINAL_POSITION = pos, "
     "    IS_NULLABLE = ''"
     "    WHERE ";
-        
+
         const auto case_insensitive = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_TRUE);
 
         if (case_insensitive) {
@@ -1626,7 +1626,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedureColumns)(
         }
 
         query << " ORDER BY PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME, COLUMN_TYPE";
-        
+
         statement.executeQuery(query.str());
 
         return SQL_SUCCESS;
@@ -1636,7 +1636,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedureColumns)(
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
 }
 
-SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedures)(
+SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedures)(
     SQLHSTMT StatementHandle,
     SQLTCHAR * CatalogName,
     SQLSMALLINT NameLength1,
@@ -1687,7 +1687,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLProcedures)(
         statement.executeQuery(query.str());
         return SQL_SUCCESS;
 
-    
+
     };
 
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_STMT, StatementHandle, func);
