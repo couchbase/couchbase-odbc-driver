@@ -59,8 +59,8 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
     GET_CONFIG(query_timeout, INI_QUERY_TIMEOUT, INI_QUERY_TIMEOUT_DEFAULT);
     GET_CONFIG(huge_int_as_string, INI_HUGE_INT_AS_STRING, INI_HUGE_INT_AS_STRING_DEFAULT);
     GET_CONFIG(stringmaxlength, INI_STRINGMAXLENGTH, INI_STRINGMAXLENGTH_DEFAULT);
-    GET_CONFIG(driverlog,       INI_DRIVERLOG,       INI_DRIVERLOG_DEFAULT);
-    GET_CONFIG(driverlogfile,   INI_DRIVERLOGFILE,   INI_DRIVERLOGFILE_DEFAULT);
+    GET_CONFIG(driver_log,       INI_DRIVERLOG,       INI_DRIVERLOG_DEFAULT);
+    GET_CONFIG(driver_log_file,   INI_DRIVERLOGFILE,   INI_DRIVERLOGFILE_DEFAULT);
 
 #undef GET_CONFIG
 }
@@ -103,8 +103,8 @@ void writeDSNinfo(const ConnInfo * ci) {
     WRITE_CONFIG(query_timeout, INI_QUERY_TIMEOUT);
     WRITE_CONFIG(huge_int_as_string, INI_HUGE_INT_AS_STRING);
     WRITE_CONFIG(stringmaxlength, INI_STRINGMAXLENGTH);
-    WRITE_CONFIG(driverlog,       INI_DRIVERLOG);
-    WRITE_CONFIG(driverlogfile,   INI_DRIVERLOGFILE);
+    WRITE_CONFIG(driver_log,       INI_DRIVERLOG);
+    WRITE_CONFIG(driver_log_file,   INI_DRIVERLOGFILE);
 
 #undef WRITE_CONFIG
 }

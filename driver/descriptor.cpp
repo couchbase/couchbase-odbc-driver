@@ -197,7 +197,7 @@ DescriptorRecord & Descriptor::getRecord(std::size_t num, SQLINTEGER current_rol
         // Initialize at least 0th BOOKMARK record
         records.reserve(10);
         records.emplace_back();
-        getParent().initAsDescRec(records[0], current_role);
+        getParent().init_as_desc_rec(records[0], current_role);
     }
 
     // Short-circuit on 0th BOOKMARK record.
@@ -208,12 +208,12 @@ DescriptorRecord & Descriptor::getRecord(std::size_t num, SQLINTEGER current_rol
     const auto curr_rec_count = getRecordCount();
 
     for (std::size_t i = curr_rec_count + 1; i <= num && i < records.size(); ++i) {
-        getParent().initAsDescRec(records[i], current_role);
+        getParent().init_as_desc_rec(records[i], current_role);
     }
 
     while (records.size() <= std::max(curr_rec_count, num)) {
         records.emplace_back();
-        getParent().initAsDescRec(records.back(), current_role);
+        getParent().init_as_desc_rec(records.back(), current_role);
     }
 
     if (curr_rec_count < num) {

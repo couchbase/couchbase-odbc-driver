@@ -21,64 +21,48 @@ private:
 public:
     explicit Statement(Connection & connection);
     virtual ~Statement();
-
     // Lookup TypeInfo for given name of type.
     const TypeInfo & getTypeInfo(const std::string & type_name, const std::string & type_name_without_parameters) const;
     bool isPrepared() const;
     bool isExecuted() const;
     // Prepare query for execution.
     void prepareQuery(const std::string & q);
-
     std::string nativeSql(const std::string & q);
-
     // Execute previously prepared query, or no-op if previous execution was done using forwardExecuteQuery().
     void executeQuery(std::unique_ptr<ResultMutator> && mutator = std::unique_ptr<ResultMutator>{});
-
     // Prepare and execute query.
     void executeQuery(const std::string & q, std::unique_ptr<ResultMutator> && mutator = std::unique_ptr<ResultMutator> {});
-
     // Execute previously prepared query.
     void forwardExecuteQuery(std::unique_ptr<ResultMutator> && mutator = std::unique_ptr<ResultMutator> {});
-
     // Indicates whether there is an result set available for reading.
     bool hasResultSet() const;
-
     // Get the current resukt set.
     ResultSet & getResultSet();
-
     // Make the next result set current, if any.
     bool advanceToNextResultSet();
-
     // Reset statement to initial state.
     void closeCursor();
-
     // Reset/release row/column buffer bindings.
     void resetColBindings();
-
     // Reset/release parameter buffer bindings.
     void resetParamBindings();
-
     // Access the effective descriptor by its role (type).
     Descriptor & getEffectiveDescriptor(SQLINTEGER type);
-
     // Set an explicit descriptor for a role (type).
     void setExplicitDescriptor(SQLINTEGER type, std::shared_ptr<Descriptor> desc);
-
     // Make an implicit descriptor active again.
     void setImplicitDescriptor(SQLINTEGER type);
-
     CallbackCookie cbCookie;
     std::uint32_t stmt_query_timeout;
     bool is_set_stmt_query_timeout;
-
     void handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator = std::unique_ptr<ResultMutator>{});
+    long long getMillisecondsFromODBCtimestamp(const std::string& timestamp_exp);
 private:
     void requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mutator);
     static void queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPANALYTICS * resp);
 
     void processEscapeSequences();
     void extractParametersinfo();
-    std::string buildFinalQuery(const std::vector<ParamBindingInfo>& param_bindings);
     std::string getParamFinalName(std::size_t param_idx);
     std::vector<ParamBindingInfo> getParamsBindingInfo(std::size_t param_set_idx);
 

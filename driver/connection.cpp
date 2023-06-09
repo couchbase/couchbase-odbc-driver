@@ -7,10 +7,6 @@
 #include "driver/statement.h"
 #include "driver/utils/utils.h"
 
-#include <Poco/Base64Encoder.h>
-#include <Poco/Net/HTTPClientSession.h>
-#include <Poco/NumberParser.h> // TODO: switch to std
-#include <Poco/URI.h>
 #include <random>
 
 extern "C" {
@@ -33,7 +29,7 @@ lcb_STATUS lcb_createopts_credentials(lcb_CREATEOPTS *, const char *,size_t , co
 std::once_flag ssl_init_once;
 
 #if !defined(WORKAROUND_DISABLE_SSL)
-void SSLInit(bool ssl_strict, const std::string & privateKeyFile, const std::string & certificateFile, const std::string & caLocation) {
+void SSLInit(bool ssl_strict, const std::string & private_key_file, const std::string & certificate_file, const std::string & caLocation) {
 // http://stackoverflow.com/questions/18315472/https-request-in-c-using-poco
     Poco::Net::initializeSSL();
     Poco::SharedPtr<Poco::Net::InvalidCertificateHandler> ptrHandler;
@@ -42,11 +38,11 @@ void SSLInit(bool ssl_strict, const std::string & privateKeyFile, const std::str
     else
         ptrHandler = new Poco::Net::AcceptCertificateHandler(false);
     Poco::Net::Context::Ptr ptrContext = new Poco::Net::Context(Poco::Net::Context::CLIENT_USE,
-        privateKeyFile
+        private_key_file
 #    if !defined(SECURITY_WIN32)
         // Do not work with poco/NetSSL_Win:
         ,
-        certificateFile,
+        certificate_file,
         caLocation,
         ssl_strict ? Poco::Net::Context::VERIFY_STRICT : Poco::Net::Context::VERIFY_RELAXED,
         9,
@@ -84,56 +80,6 @@ const TypeInfo & Connection::getTypeInfo(const std::string & type_name, const st
 
     return getParent().getTypeInfo(tmp_type_name, tmp_type_name_without_parameters);
 }
-
-Poco::URI Connection::getUri() const {
-    Poco::URI uri(url);
-
-    if (!proto.empty())
-        uri.setScheme(proto);
-
-    if (!server.empty())
-        uri.setHost(server);
-
-    if (port != 0)
-        uri.setPort(port);
-
-    if (!path.empty())
-        uri.setPath(path);
-
-    bool bucket_set = false;
-    bool default_format_set = false;
-
-    for (const auto& parameter : uri.getQueryParameters()) {
-        if (Poco::UTF8::icompare(parameter.first, "default_format") == 0) {
-            default_format_set = true;
-        }
-        else if (Poco::UTF8::icompare(parameter.first, "bucket") == 0) {
-            bucket_set = true;
-        }
-    }
-
-    if (!default_format_set)
-        uri.addQueryParameter("default_format", default_format);
-
-    if (!bucket_set)
-        uri.addQueryParameter("bucket", bucket);
-
-    // To use some features of CH (e.g. TEMPORARY TABLEs) we need a (named) session.
-    {
-        const auto & parameters = uri.getQueryParameters();
-        const auto p = std::find_if(parameters.begin(), parameters.end(), [](const auto & param_kv) {
-            return param_kv.first == "session_id";
-        });
-
-        // DO not overwrite user-set session_id, just in case...
-        if (p == parameters.end()) {
-            uri.addQueryParameter("session_id", session_id);
-        }
-    }
-
-    return uri;
-}
-
 
 void Connection::cb_check(lcb_STATUS err, const char * msg) {
     if (err != LCB_SUCCESS) {
@@ -200,75 +146,43 @@ void Connection::connect(const std::string & connection_string) {
     setConfiguration(cs_fields, dsn_fields);
 
     LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << bucket);
-
-    if (!isCB) {
-#if !defined(WORKAROUND_DISABLE_SSL)
-        const auto is_ssl = (Poco::UTF8::icompare(proto, "https") == 0);
-        if (is_ssl) {
-            const auto ssl_strict = (Poco::UTF8::icompare(sslmode, "allow") != 0);
-            std::call_once(ssl_init_once, SSLInit, ssl_strict, privateKeyFile, certificateFile, caLocation);
+    const char * cb_username = username.c_str();
+    const char * cb_password = password.c_str();
+    char conn_str[1024];
+    const std::string EMPTY_STRING = "";
+    if (port != 0 && !proto.empty()) {
+        if (sprintf(conn_str, "couchbase://%s:%d=%s/%s", server.c_str(), port, proto.c_str(), bucket.c_str()) >= 1024) {
+            std::cout << "Insufficient conn_str buffer space\n";
         }
-#endif
-
-        session = (
-#if !defined(WORKAROUND_DISABLE_SSL)
-            is_ssl ? std::make_unique<Poco::Net::HTTPSClientSession>() :
-#endif
-                   std::make_unique<Poco::Net::HTTPClientSession>());
-
-        session->setHost(server);
-        session->setPort(port);
-        session->setKeepAlive(true);
-        session->setTimeout(Poco::Timespan(connection_timeout, 0), Poco::Timespan(timeout, 0), Poco::Timespan(timeout, 0));
-        session->setKeepAliveTimeout(Poco::Timespan(86400, 0));
-
-        if (verify_connection_early) {
-            verifyConnection();
+    } else if (port == 0 && proto == EMPTY_STRING) {
+        if (sprintf(conn_str, "couchbase://%s/%s", server.c_str(), bucket.c_str()) >= 1024) {
+            std::cout << "Insufficient conn_str buffer space\n";
         }
     } else {
-        const char * cb_username = username.c_str();
-        const char * cb_password = password.c_str();
-        char conn_str[1024];
-
-        const std::string EMPTY_STRING = "";
-        if (port != 0 && proto != EMPTY_STRING) {
-            if (sprintf(conn_str, "couchbase://%s:%hu=%s/%s", server.c_str(), port, proto.c_str(), bucket.c_str()) >= 1024) {
-                std::cout << "Insufficient conn_str buffer space\n";
-            }
-        } else if (port == 0 && proto == EMPTY_STRING) {
-            if (sprintf(conn_str, "couchbase://%s/%s", server.c_str(), bucket.c_str()) >= 1024) {
-                std::cout << "Insufficient conn_str buffer space\n";
-            }
-        } else {
-            std::cout << "Invalid Config, Either supply both port and proto or none\n";
-        }
-        lcb_CREATEOPTS * lcb_create_options = NULL;
-        lcb_createopts_create(&lcb_create_options, LCB_TYPE_BUCKET);
-        lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
-        lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
-        try {
-            cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
-        } catch (std::exception & ex) {
-            lcb_createopts_destroy(lcb_create_options);
-            throw std::runtime_error(ex.what());
-        }
+        LOG("Invalid Config, Either supply both port and proto or none\n");
+    }
+    lcb_CREATEOPTS * lcb_create_options = NULL;
+    lcb_createopts_create(&lcb_create_options, LCB_TYPE_BUCKET);
+    lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
+    lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
+    try {
+        cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
+    } catch (std::exception & ex) {
         lcb_createopts_destroy(lcb_create_options);
-        std::ostringstream oss;
-        oss << login_timeout * 1000000;
-        cb_check(lcb_connect(lcb_instance), "schedule connection");
-        lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
-        try {
-            cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
-        } catch (std::exception & ex) {
-            throw SqlException("Connection not open", "08003");
-        }
-
+        throw std::runtime_error(ex.what());
+    }
+    lcb_createopts_destroy(lcb_create_options);
+    cb_check(lcb_connect(lcb_instance), "schedule connection");
+    lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
+    try {
+        cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
+    } catch (std::exception & ex) {
+        throw SqlException("Connection not open", "08003");
     }
 }
 
 void Connection::resetConfiguration() {
     dsn.clear();
-    sid.clear();
     url.clear();
     proto.clear();
     username.clear();
@@ -279,15 +193,15 @@ void Connection::resetConfiguration() {
     timeout = 0;
     query_timeout = 0;
     sslmode.clear();
-    privateKeyFile.clear();
-    certificateFile.clear();
-    caLocation.clear();
+    private_key_file.clear();
+    certificate_file.clear();
+    ca_location.clear();
     path.clear();
     default_format.clear();
     bucket.clear();
-    browseResult.clear();
-    browseConnectStep = 0;
-    stringmaxlength = 0;
+    browse_result.clear();
+    browse_connect_step = 0;
+    string_max_length = 0;
 }
 
 void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_value_map_t & dsn_fields) {
@@ -397,21 +311,21 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
-                privateKeyFile = value;
+                private_key_file = value;
             }
         }
         else if (Poco::UTF8::icompare(key, INI_CERTIFICATEFILE) == 0) {
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
-                certificateFile = value;
+                certificate_file = value;
             }
         }
         else if (Poco::UTF8::icompare(key, INI_CALOCATION) == 0) {
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
-                caLocation = value;
+                ca_location = value;
             }
         }
         else if (Poco::UTF8::icompare(key, INI_PATH) == 0) {
@@ -426,12 +340,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = true;
             if (valid_value) {
                 bucket = value;
-            }
-        } else if (Poco::UTF8::icompare(key, INI_SOURCE_ID) == 0) {
-            recognized_key = true;
-            valid_value = true;
-            if (valid_value) {
-                sid = value;
             }
         } else if (Poco::UTF8::icompare(key, INI_LOGIN_TIMEOUT) == 0) {
             recognized_key = true;
@@ -463,10 +371,10 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = (value.empty() || (
                 Poco::NumberParser::tryParseUnsigned(value, typed_value) &&
                 typed_value > 0 &&
-                typed_value <= std::numeric_limits<decltype(stringmaxlength)>::max()
+                typed_value <= std::numeric_limits<decltype(string_max_length)>::max()
             ));
             if (valid_value) {
-                stringmaxlength = typed_value;
+                string_max_length = typed_value;
             }
         } else if (Poco::UTF8::icompare(key, INI_DRIVERLOGFILE) == 0) {
             recognized_key = true;
@@ -528,13 +436,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     }
 
     // Deduce and set all the remaining attributes that are still carrying the default/unintialized values. (This will overwrite only some of the defaults.)
-    if (sid.empty()) {
-        sid = "cb";
-        isCB = true;
-    } else {
-        isCB = (sid == "cb");
-    }
-
     if (dsn.empty())
         dsn = INI_DSN_DEFAULT;
 
@@ -580,14 +481,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
         }
     }
 
-    if (proto.empty()) {
-        if (!isCB) {
-            if (!sslmode.empty() || port == 443 || port == 8443)
-                proto = "https";
-            else
-                proto = "http";
-        }
-    }
 
     if (username.empty())
         username = "default";
@@ -595,18 +488,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     if (server.empty())
         server = "localhost";
 
-    if (port == 0) {
-        if (!isCB) {
-            port = (Poco::UTF8::icompare(proto, "https") == 0 ? 8443 : 8123);
-        }
-    }
-
-    if (timeout == 0) {
-        if (!isCB)
-            timeout = 30;
-        // CB doesn't have a notion of timeout and connection_timeout
-        // We have LoginTimeout and QueryTimeout
-    }
 
     if (connection_timeout == 0)
         connection_timeout = timeout;
@@ -632,45 +513,11 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     if (bucket.empty())
         bucket = "default";
 
-    if (stringmaxlength == 0)
-        stringmaxlength = TypeInfo::string_max_size;
+    if (string_max_length == 0)
+        string_max_length = TypeInfo::string_max_size;
 }
 
-void Connection::verifyConnection() {
-    LOG("Verifying connection and credentials...");
-    auto & statement = allocateChild<Statement>();
-
-    try {
-        statement.executeQuery("SELECT 1");
-    }
-    catch (...) {
-        statement.deallocateSelf();
-        throw;
-    }
-
-    statement.deallocateSelf();
-}
-
-std::string Connection::buildCredentialsString() const {
-    std::ostringstream user_password_base64;
-    Poco::Base64Encoder base64_encoder(user_password_base64, Poco::BASE64_URL_ENCODING);
-    base64_encoder << username << ":" << password;
-    base64_encoder.close();
-    return user_password_base64.str();
-}
-
-std::string Connection::buildUserAgentString() const {
-    std::ostringstream user_agent;
-    user_agent << "couchbase-odbc/" << VERSION_STRING << " (" << SYSTEM_STRING << ")";
-#if defined(UNICODE)
-    user_agent << " UNICODE";
-#endif
-    if (!useragent.empty())
-        user_agent << " " << useragent;
-    return user_agent.str();
-}
-
-void Connection::initAsAD(Descriptor & desc, bool user) {
+void Connection::init_as_ad(Descriptor & desc, bool user) {
     desc.resetAttrs();
     desc.setAttr(SQL_DESC_ALLOC_TYPE, (user ? SQL_DESC_ALLOC_USER : SQL_DESC_ALLOC_AUTO));
     desc.setAttr(SQL_DESC_ARRAY_SIZE, 1);
@@ -679,35 +526,35 @@ void Connection::initAsAD(Descriptor & desc, bool user) {
     desc.setAttr(SQL_DESC_BIND_TYPE, SQL_BIND_TYPE_DEFAULT);
 }
 
-void Connection::initAsID(Descriptor & desc) {
+void Connection::init_as_id(Descriptor & desc) {
     desc.resetAttrs();
     desc.setAttr(SQL_DESC_ALLOC_TYPE, SQL_DESC_ALLOC_AUTO);
     desc.setAttr(SQL_DESC_ARRAY_STATUS_PTR, 0);
     desc.setAttr(SQL_DESC_ROWS_PROCESSED_PTR, 0);
 }
 
-void Connection::initAsDesc(Descriptor & desc, SQLINTEGER role, bool user) {
+void Connection::init_as_desc(Descriptor & desc, SQLINTEGER role, bool user) {
     switch (role) {
         case SQL_ATTR_APP_ROW_DESC: {
-            initAsAD(desc, user);
+            init_as_ad(desc, user);
             break;
         }
         case SQL_ATTR_APP_PARAM_DESC: {
-            initAsAD(desc, user);
+            init_as_ad(desc, user);
             break;
         }
         case SQL_ATTR_IMP_ROW_DESC: {
-            initAsID(desc);
+            init_as_id(desc);
             break;
         }
         case SQL_ATTR_IMP_PARAM_DESC: {
-            initAsID(desc);
+            init_as_id(desc);
             break;
         }
     }
 }
 
-void Connection::initAsADRec(DescriptorRecord & rec) {
+void Connection::init_as_adrec(DescriptorRecord & rec) {
     rec.resetAttrs();
     rec.setAttr(SQL_DESC_TYPE, SQL_C_DEFAULT); // Also sets SQL_DESC_CONCISE_TYPE (to SQL_C_DEFAULT) and SQL_DESC_DATETIME_INTERVAL_CODE (to 0).
     rec.setAttr(SQL_DESC_OCTET_LENGTH_PTR, 0);
@@ -715,26 +562,26 @@ void Connection::initAsADRec(DescriptorRecord & rec) {
     rec.setAttr(SQL_DESC_DATA_PTR, 0);
 }
 
-void Connection::initAsIDRec(DescriptorRecord & rec) {
+void Connection::init_as_idrec(DescriptorRecord & rec) {
     rec.resetAttrs();
 }
 
-void Connection::initAsDescRec(DescriptorRecord & rec, SQLINTEGER desc_role) {
+void Connection::init_as_desc_rec(DescriptorRecord & rec, SQLINTEGER desc_role) {
     switch (desc_role) {
         case SQL_ATTR_APP_ROW_DESC: {
-            initAsADRec(rec);
+            init_as_adrec(rec);
             break;
         }
         case SQL_ATTR_APP_PARAM_DESC: {
-            initAsADRec(rec);
+            init_as_adrec(rec);
             break;
         }
         case SQL_ATTR_IMP_ROW_DESC: {
-            initAsIDRec(rec);
+            init_as_idrec(rec);
             break;
         }
         case SQL_ATTR_IMP_PARAM_DESC: {
-            initAsIDRec(rec);
+            init_as_idrec(rec);
             rec.setAttr(SQL_DESC_PARAMETER_TYPE, SQL_PARAM_INPUT);
             break;
         }

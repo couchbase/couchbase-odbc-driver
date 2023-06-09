@@ -42,7 +42,7 @@ const std::map<const Token::Type, const std::string> function_map_strip_params {
 };
 
 const std::map<const Token::Type, const std::string> literal_map {
-    // {Token::SQL_TSI_FRAC_SECOND, ""},
+    {Token::SQL_TSI_FRAC_SECOND, "'millisecond'"},
     {Token::SQL_TSI_SECOND, "'second'"},
     {Token::SQL_TSI_MINUTE, "'minute'"},
     {Token::SQL_TSI_HOUR, "'hour'"},
@@ -52,19 +52,6 @@ const std::map<const Token::Type, const std::string> literal_map {
     {Token::SQL_TSI_QUARTER, "'quarter'"},
     {Token::SQL_TSI_YEAR, "'year'"},
 };
-
-const std::map<const Token::Type, const std::string> timeadd_func_map {
-    // {Token::SQL_TSI_FRAC_SECOND, ""},
-    {Token::SQL_TSI_SECOND, "addSeconds"},
-    {Token::SQL_TSI_MINUTE, "addMinutes"},
-    {Token::SQL_TSI_HOUR, "addHours"},
-    {Token::SQL_TSI_DAY, "addDays"},
-    {Token::SQL_TSI_WEEK, "addWeeks"},
-    {Token::SQL_TSI_MONTH, "addMonths"},
-    {Token::SQL_TSI_QUARTER, "addQuarters"},
-    {Token::SQL_TSI_YEAR, "addYears"},
-};
-
 
 string processEscapeSequencesImpl(const StringView seq, Lexer & lex);
 
@@ -131,12 +118,14 @@ string processIdentOrFunction(const StringView seq, Lexer & lex) {
     } else if (token.type == Token::NUMBER || token.type == Token::IDENT || token.type == Token::STRING) {
         result += token.literal.to_string();
         lex.Consume();
+    } else if (token.type == Token::QUESTION_MARK) {
+        result += "?";
+        lex.Consume();
     } else {
         return "";
     }
     while (lex.Match(Token::SPACE)) {
     }
-
     return result;
 }
 
@@ -187,9 +176,10 @@ string processFunction(const StringView seq, Lexer & lex) {
             return seq.to_string();
 
         Token type = lex.Consume();
-        if (timeadd_func_map.find(type.type) == timeadd_func_map.end())
+        if (literal_map.find(type.type) == literal_map.end())
             return seq.to_string();
-        string func = timeadd_func_map.at(type.type);
+        auto dtype = literal_map.at(type.type);
+        string func = "timestampadd";
         if (!lex.Match(Token::COMMA))
             return seq.to_string();
         auto ramount = processIdentOrFunction(seq, lex);
@@ -213,10 +203,39 @@ string processFunction(const StringView seq, Lexer & lex) {
             if (!lex.Match(Token::RPARENT)) {
                 return seq.to_string();
             }
-            result = func + "(" + rdate + ", " + ramount + ")";
+            result = func + "(" + dtype + ", " + ramount + ", " + rdate + ")";
         }
         return result;
-
+    } else if (fn.type == Token::TIMESTAMPDIFF) {
+        string result;
+        if (!lex.Match(Token::LPARENT))
+            return seq.to_string();
+        Token type = lex.Consume();
+        if (literal_map.find(type.type) == literal_map.end())
+            return seq.to_string();
+        auto dtype = literal_map.at(type.type);
+        string func = "timestampdiff";
+        if (!lex.Match(Token::COMMA))
+            return seq.to_string();
+        auto ldate = processIdentOrFunction(seq, lex);
+        if (ldate.empty())
+            return seq.to_string();
+        while (lex.Match(Token::SPACE)) {
+        }
+        if (!lex.Match(Token::COMMA))
+            return seq.to_string();
+        auto rdate = processIdentOrFunction(seq, lex);
+        if (rdate.empty())
+            return seq.to_string();
+        if (!func.empty()) {
+            while (lex.Match(Token::SPACE)) {
+            }
+            if (!lex.Match(Token::RPARENT)) {
+                return seq.to_string();
+            }
+            result = func + "(" + dtype + ", " + ldate + ", " + rdate + ")";
+        }
+        return result;
     } else if (fn.type == Token::LOCATE) {
         string result;
         if (!lex.Match(Token::LPARENT))

@@ -26,15 +26,15 @@ struct ConnInfo {
     std::string query_timeout;
     std::string verify_connection_early;
     std::string sslmode;
-    std::string privateKeyFile;
-    std::string certificateFile;
+    std::string private_key_file;
+    std::string certificate_file;
     std::string caLocation;
     std::string bucket;
     std::string sid;
     std::string huge_int_as_string;
     std::string stringmaxlength;
-    std::string driverlog;
-    std::string driverlogfile;
+    std::string driver_log;
+    std::string driver_log_file;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

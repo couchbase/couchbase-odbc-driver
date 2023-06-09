@@ -10,9 +10,6 @@
 #include "driver/descriptor.h"
 #include "driver/statement.h"
 #include "driver/result_set.h"
-
-#include <Poco/Net/HTTPClientSession.h>
-#include <Poco/NumberFormatter.h>
 #include <Poco/Timezone.h>
 
 #include <libcouchbase/couchbase.h>
@@ -574,18 +571,18 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColAttribute)(
         const auto & column_info = result_set.getColumnInfo(column_idx);
         const auto & type_info = statement.getTypeInfo(column_info.type, column_info.type_without_parameters);
 
-        std::int32_t SQL_DESC_LENGTH_value = 0;
+        int SQL_DESC_LENGTH_value = 0;
         if (type_info.isBufferType()) {
             if (column_info.display_size > 0)
                 SQL_DESC_LENGTH_value = column_info.display_size;
             else if (column_info.fixed_size > 0)
                 SQL_DESC_LENGTH_value = column_info.fixed_size;
 
-            if (SQL_DESC_LENGTH_value <= 0 || SQL_DESC_LENGTH_value > statement.getParent().stringmaxlength)
-                SQL_DESC_LENGTH_value = statement.getParent().stringmaxlength;
+            if (SQL_DESC_LENGTH_value <= 0 || SQL_DESC_LENGTH_value > statement.getParent().string_max_length)
+                SQL_DESC_LENGTH_value = statement.getParent().string_max_length;
         }
 
-        std::int32_t SQL_DESC_OCTET_LENGTH_value = type_info.octet_length;
+        int SQL_DESC_OCTET_LENGTH_value = type_info.octet_length;
         if (type_info.isBufferType()) {
             if (type_info.isWideCharStringType())
                 SQL_DESC_OCTET_LENGTH_value = SQL_DESC_LENGTH_value * sizeof(SQLWCHAR);
@@ -696,7 +693,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLDescribeCol)(HSTMT statement_hand
             *out_type = type_info.sql_type;
         if (out_column_size)
             *out_column_size = std::min<int32_t>(
-                statement.getParent().stringmaxlength, column_info.fixed_size ? column_info.fixed_size : type_info.column_size);
+                statement.getParent().string_max_length, column_info.fixed_size ? column_info.fixed_size : type_info.column_size);
         if (out_decimal_digits)
             *out_decimal_digits = 0;
         if (out_is_nullable)
@@ -791,11 +788,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION(SQLMoreResults)(HSTMT statement_handle) {
 SQLRETURN SQL_API EXPORTED_FUNCTION(SQLDisconnect)(HDBC connection_handle) {
     LOG(__FUNCTION__);
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_DBC, connection_handle, [&](Connection & connection) {
-        if (connection.isCB) {
-            lcb_destroy(connection.lcb_instance);
-        } else {
-            connection.session->reset();
-        }
+        lcb_destroy(connection.lcb_instance);
         return SQL_SUCCESS;
     });
 }
@@ -1162,28 +1155,28 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLBrowseConnect)(
     ) {
     return CALL_WITH_TYPED_HANDLE(SQL_HANDLE_DBC, ConnectionHandle, [&](Connection & connection) {
         std::string outputString;
-        switch (connection.browseConnectStep)
+        switch (connection.browse_connect_step)
             {
             case 0:
-                connection.browseResult += toUTF8(InConnectionString, StringLength1);
-                connection.browseConnectStep += 1;
-                outputString += "SERVER:Server={localhost};UID:Login ID=?;PWD:Password=?;*APP:AppName=?;*WSID:WorkStation ID=?;";
+                connection.browse_result += toUTF8(InConnectionString, StringLength1);
+                connection.browse_connect_step += 1;
+                outputString += "SERVER:Server={" + connection.server + "};UID:Login ID=?;PWD:Password=?;*APP:AppName=?;*WSID:WorkStation ID=?;";
                 fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
                 return SQL_NEED_DATA;
 
             case 1:
-                connection.browseResult += ";";
-                connection.browseResult += toUTF8(InConnectionString, StringLength1);
+                connection.browse_result += ";";
+                connection.browse_result += toUTF8(InConnectionString, StringLength1);
                 outputString += "*BUCKET:Bucket={" + connection.bucket + "};*LANGUAGE:Language={us_english,Franais};";
-                connection.browseConnectStep += 1;
+                connection.browse_connect_step += 1;
                 fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
                 return SQL_NEED_DATA;
 
             case 2:
-                connection.browseResult += ";";
-                connection.browseResult += toUTF8(InConnectionString, StringLength1);
-                outputString += connection.browseResult;
-                connection.connect(connection.browseResult);
+                connection.browse_result += ";";
+                connection.browse_result += toUTF8(InConnectionString, StringLength1);
+                outputString += connection.browse_result;
+                connection.connect(connection.browse_result);
                 fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
                 return SQL_SUCCESS;
 

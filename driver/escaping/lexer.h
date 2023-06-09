@@ -37,6 +37,7 @@ struct Token {
         RPARENT, //  )
         LCURLY,  //  {
         RCURLY,  //  }
+        QUESTION_MARK, // ?
     };
 
 #undef DECLARE

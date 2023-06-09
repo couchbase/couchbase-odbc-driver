@@ -5,9 +5,6 @@
 #include "driver/connection.h"
 #include "driver/descriptor.h"
 #include "driver/statement.h"
-
-#include <Poco/Net/HTTPClientSession.h>
-
 #include <new>
 #include <ostream>
 #include <type_traits>
@@ -61,7 +58,7 @@ SQLRETURN allocDesc(
             return SQL_INVALID_HANDLE;
 
         auto & descriptor = connection.allocateChild<Descriptor>();
-        connection.initAsAD(descriptor, true);
+        connection.init_as_ad(descriptor, true);
         *out_descriptor_handle = descriptor.getHandle();
         return SQL_SUCCESS;
     });
@@ -219,12 +216,6 @@ SQLRETURN SetConnectAttr(
 
                 connection.login_timeout = login_timeout;
                 connection.is_set_login_timeout = true;
-                if (connection.lcb_instance != nullptr && connection.isCB) {
-                    std::ostringstream oss;
-                    oss << (connection.login_timeout * 1000000);
-                    // connection.cb_check(
-                    //     lcb_cntl_string(connection.lcb_instance, "config_total_timeout", oss.str().c_str()), "set config_total_timeout");
-                }
                 return SQL_SUCCESS;
             }
             case SQL_ATTR_ODBC_CURSORS:
@@ -432,11 +423,9 @@ SQLRETURN SetStmtAttr(
                 statement.stmt_query_timeout = query_timeout;
                 statement.is_set_stmt_query_timeout = true;
                 auto & connection = statement.getParent();
-                if (connection.lcb_instance != nullptr && connection.isCB) {
+                if (connection.lcb_instance != nullptr) {
                     std::ostringstream oss;
                     oss << (statement.stmt_query_timeout) * 1000000;
-                    // connection.cb_check(
-                    //     lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics_timeout");
                 }
                 return SQL_SUCCESS;
             }
