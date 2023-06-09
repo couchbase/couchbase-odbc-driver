@@ -868,7 +868,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
         query << "SELECT";
 
         if(catalog == SQL_ALL_CATALOGS && schema.empty() && table.empty()){
-                query << " Distinct TABLE_CAT,TABLE_SCHEM,null TABLE_NAME,TABLE_TYPE, null REMARKS ";
+                query << " Distinct TABLE_CAT,null TABLE_SCHEM,null TABLE_NAME,TABLE_TYPE, null REMARKS ";
                 query << " from Metadata.`Dataset` ds join Metadata.`Datatype` dt ";
                 query << " on ds.DatatypeDataverseName = dt.DataverseName ";
                 query << " and ds.DatatypeName = dt.DatatypeName ";
@@ -882,8 +882,6 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
                 case 2:
                     query << "dvname = decode_dataverse_name(ds.DataverseName), ";
                     query << "TABLE_CAT = dvname[0], ";
-                    query <<" sch = dvname[1],";
-                    query << "TABLE_SCHEM = sch, ";
                     break;
                 }
                 query << " TABLE_TYPE = 'VIEW', ";
