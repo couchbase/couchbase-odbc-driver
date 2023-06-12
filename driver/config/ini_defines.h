@@ -26,7 +26,7 @@
 #define INI_CERTIFICATEFILE "CertificateFile"
 #define INI_CALOCATION      "CALocation"
 #define INI_PATH            "Path"            /* Path portion of the URL */
-#define INI_DATABASE        "Database"        /* Database Name */
+#define INI_BUCKET        "Bucket"        /* Bucket Name */
 #define INI_SOURCE_ID "SourceID"              /* "cb" or "ch" */
 #define INI_LOGIN_TIMEOUT "LoginTimeout"
 #define INI_QUERY_TIMEOUT "QueryTimeout"
@@ -50,7 +50,7 @@
 #define INI_TIMEOUT_DEFAULT         "30"
 #define INI_VERIFY_CONNECTION_EARLY_DEFAULT "off"
 #define INI_SSLMODE_DEFAULT         ""
-#define INI_DATABASE_DEFAULT        ""
+#define INI_BUCKET_DEFAULT        ""
 #define INI_SOURCE_ID_DEFAULT "cb"
 #define INI_LOGIN_TIMEOUT_DEFAULT "5"  // = LCB_DEFAULT_CONFIGURATION_TIMEOUT
 #define INI_QUERY_TIMEOUT_DEFAULT "75" // = LCB_DEFAULT_ANALYTICS_TIMEOUT

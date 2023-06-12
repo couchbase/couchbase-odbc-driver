@@ -53,7 +53,7 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
     GET_CONFIG(timeout,         INI_TIMEOUT,         INI_TIMEOUT_DEFAULT);
     GET_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY, INI_VERIFY_CONNECTION_EARLY_DEFAULT);
     GET_CONFIG(sslmode,         INI_SSLMODE,         INI_SSLMODE_DEFAULT);
-    GET_CONFIG(database,        INI_DATABASE,        INI_DATABASE_DEFAULT);
+    GET_CONFIG(bucket,        INI_BUCKET,        INI_BUCKET_DEFAULT);
     GET_CONFIG(sid,        INI_SOURCE_ID,        INI_SOURCE_ID_DEFAULT);
     GET_CONFIG(login_timeout, INI_LOGIN_TIMEOUT, INI_LOGIN_TIMEOUT_DEFAULT);
     GET_CONFIG(query_timeout, INI_QUERY_TIMEOUT, INI_QUERY_TIMEOUT_DEFAULT);
@@ -97,7 +97,7 @@ void writeDSNinfo(const ConnInfo * ci) {
     WRITE_CONFIG(timeout,         INI_TIMEOUT);
     WRITE_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY);
     WRITE_CONFIG(sslmode,         INI_SSLMODE);
-    WRITE_CONFIG(database,        INI_DATABASE);
+    WRITE_CONFIG(bucket,        INI_BUCKET);
     WRITE_CONFIG(sid,        INI_SOURCE_ID);
     WRITE_CONFIG(login_timeout, INI_LOGIN_TIMEOUT);
     WRITE_CONFIG(query_timeout, INI_QUERY_TIMEOUT);
@@ -343,7 +343,7 @@ key_value_map_t readDSNInfo(const std::string & dsn_utf8) {
              INI_CERTIFICATEFILE,
              INI_CALOCATION,
              INI_PATH,
-             INI_DATABASE,
+             INI_BUCKET,
              INI_SOURCE_ID,
              INI_LOGIN_TIMEOUT,
              INI_QUERY_TIMEOUT,

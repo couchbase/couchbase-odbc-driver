@@ -100,23 +100,23 @@ Poco::URI Connection::getUri() const {
     if (!path.empty())
         uri.setPath(path);
 
-    bool database_set = false;
+    bool bucket_set = false;
     bool default_format_set = false;
 
     for (const auto& parameter : uri.getQueryParameters()) {
         if (Poco::UTF8::icompare(parameter.first, "default_format") == 0) {
             default_format_set = true;
         }
-        else if (Poco::UTF8::icompare(parameter.first, "database") == 0) {
-            database_set = true;
+        else if (Poco::UTF8::icompare(parameter.first, "bucket") == 0) {
+            bucket_set = true;
         }
     }
 
     if (!default_format_set)
         uri.addQueryParameter("default_format", default_format);
 
-    if (!database_set)
-        uri.addQueryParameter("database", database);
+    if (!bucket_set)
+        uri.addQueryParameter("bucket", bucket);
 
     // To use some features of CH (e.g. TEMPORARY TABLEs) we need a (named) session.
     {
@@ -199,7 +199,7 @@ void Connection::connect(const std::string & connection_string) {
     resetConfiguration();
     setConfiguration(cs_fields, dsn_fields);
 
-    LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << database);
+    LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << bucket);
 
     if (!isCB) {
 #if !defined(WORKAROUND_DISABLE_SSL)
@@ -229,20 +229,14 @@ void Connection::connect(const std::string & connection_string) {
         const char * cb_username = username.c_str();
         const char * cb_password = password.c_str();
         char conn_str[1024];
-        std::string bucketName;
-        {
-            size_t found = database.find('`', 1);
-            if (found != std::string::npos) {
-                bucketName = database.substr(1, found - 1);
-            }
-        }
+
         const std::string EMPTY_STRING = "";
         if (port != 0 && proto != EMPTY_STRING) {
-            if (sprintf(conn_str, "couchbase://%s:%hu=%s/%s", server.c_str(), port, proto.c_str(), bucketName.c_str()) >= 1024) {
+            if (sprintf(conn_str, "couchbase://%s:%hu=%s/%s", server.c_str(), port, proto.c_str(), bucket.c_str()) >= 1024) {
                 std::cout << "Insufficient conn_str buffer space\n";
             }
         } else if (port == 0 && proto == EMPTY_STRING) {
-            if (sprintf(conn_str, "couchbase://%s/%s", server.c_str(), bucketName.c_str()) >= 1024) {
+            if (sprintf(conn_str, "couchbase://%s/%s", server.c_str(), bucket.c_str()) >= 1024) {
                 std::cout << "Insufficient conn_str buffer space\n";
             }
         } else {
@@ -290,7 +284,7 @@ void Connection::resetConfiguration() {
     caLocation.clear();
     path.clear();
     default_format.clear();
-    database.clear();
+    bucket.clear();
     browseResult.clear();
     browseConnectStep = 0;
     stringmaxlength = 0;
@@ -427,11 +421,11 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
                 path = value;
             }
         }
-        else if (Poco::UTF8::icompare(key, INI_DATABASE) == 0) {
+        else if (Poco::UTF8::icompare(key, INI_BUCKET) == 0) {
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
-                database = value;
+                bucket = value;
             }
         } else if (Poco::UTF8::icompare(key, INI_SOURCE_ID) == 0) {
             recognized_key = true;
@@ -580,8 +574,8 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             if (Poco::UTF8::icompare(parameter.first, "default_format") == 0) {
                 default_format = parameter.second;
             }
-            else if (Poco::UTF8::icompare(parameter.first, "database") == 0) {
-                database = parameter.second;
+            else if (Poco::UTF8::icompare(parameter.first, "bucket") == 0) {
+                bucket = parameter.second;
             }
         }
     }
@@ -635,8 +629,8 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     if (default_format.empty())
         default_format = "ODBCDriver2";
 
-    if (database.empty())
-        database = "default";
+    if (bucket.empty())
+        bucket = "default";
 
     if (stringmaxlength == 0)
         stringmaxlength = TypeInfo::string_max_size;

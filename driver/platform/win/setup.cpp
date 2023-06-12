@@ -64,7 +64,7 @@ inline BOOL copyAttributes(ConnInfo * ci, LPCTSTR attribute, LPCTSTR value) {
     COPY_ATTR_IF(password,   INI_PWD);
     COPY_ATTR_IF(timeout,    INI_TIMEOUT);
     COPY_ATTR_IF(sslmode,    INI_SSLMODE);
-    COPY_ATTR_IF(database,   INI_DATABASE);
+    COPY_ATTR_IF(bucket,     INI_BUCKET);
     COPY_ATTR_IF(sid, INI_SOURCE_ID);
     COPY_ATTR_IF(login_timeout, INI_LOGIN_TIMEOUT);
     COPY_ATTR_IF(query_timeout, INI_QUERY_TIMEOUT);
@@ -234,7 +234,7 @@ inline INT_PTR ConfigDlgProc_(
             SET_DLG_ITEM(url, IDC_URL);
             SET_DLG_ITEM(server, IDC_SERVER_HOST);
             SET_DLG_ITEM(port, IDC_SERVER_PORT);
-            SET_DLG_ITEM(database, IDC_DATABASE);
+            SET_DLG_ITEM(bucket, IDC_BUCKET);
             SET_DLG_ITEM(username, IDC_USER);
             SET_DLG_ITEM(password, IDC_PASSWORD);
             SET_DLG_ITEM(timeout, IDC_TIMEOUT);
@@ -267,7 +267,7 @@ inline INT_PTR ConfigDlgProc_(
                     GET_DLG_ITEM(url, IDC_URL);
                     GET_DLG_ITEM(server, IDC_SERVER_HOST);
                     GET_DLG_ITEM(port, IDC_SERVER_PORT);
-                    GET_DLG_ITEM(database, IDC_DATABASE);
+                    GET_DLG_ITEM(bucket, IDC_BUCKET);
                     GET_DLG_ITEM(username, IDC_USER);
                     GET_DLG_ITEM(password, IDC_PASSWORD);
                     GET_DLG_ITEM(timeout, IDC_TIMEOUT);

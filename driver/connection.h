@@ -43,7 +43,7 @@ public: // Configuration fields.
     std::string caLocation;
     std::string path;
     std::string default_format;
-    std::string database;
+    std::string bucket;
     bool huge_int_as_string = false;
     std::int32_t stringmaxlength = 0;
     std::string browseResult;

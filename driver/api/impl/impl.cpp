@@ -173,7 +173,7 @@ SQLRETURN SetConnectAttr(
             }
 
             case SQL_ATTR_CURRENT_CATALOG:
-                connection.database = toUTF8((SQLTCHAR *)value, value_length / sizeof(SQLTCHAR));
+                connection.bucket = toUTF8((SQLTCHAR *)value, value_length / sizeof(SQLTCHAR));
                 return SQL_SUCCESS;
 
             case SQL_ATTR_ANSI_APP:
@@ -265,7 +265,7 @@ SQLRETURN GetConnectAttr(
 
             case SQL_ATTR_CURRENT_CATALOG:
                 return fillOutputString<SQLTCHAR>(
-                    connection.database,
+                    connection.bucket,
                     out_value, out_value_max_length, out_value_length, true
                 );
 
@@ -968,7 +968,7 @@ SQLRETURN GetDescField(
             CASE_FIELD_NUM_DEF ( SQL_DESC_BIND_TYPE,          SQLUINTEGER,   SQL_BIND_TYPE_DEFAULT );
             CASE_FIELD_NUM     ( SQL_DESC_COUNT,              SQLSMALLINT                          );
             CASE_FIELD_NUM     ( SQL_DESC_ROWS_PROCESSED_PTR, SQLULEN *                            );
-                
+
 #undef CASE_FIELD_NUM_DEF
 #undef CASE_FIELD_NUM
 
@@ -1056,7 +1056,7 @@ SQLRETURN GetDescRec(
     auto func = [&] (Descriptor & descriptor) -> SQLRETURN {
         if (RecNumber < 0)
             throw SqlException("Invalid descriptor index", "07009");
-        
+
         if (RecNumber > descriptor.getRecordCount())
             return SQL_NO_DATA;
 
