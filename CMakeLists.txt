@@ -4,9 +4,44 @@ set (CMAKE_MODULE_PATH_orig ${CMAKE_MODULE_PATH})
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 include (cmake/prevent_in_source_builds.cmake)
 
+# PRODUCT_VERSION logic:
+# 1. If PRODUCT_VERSION is already defined, that means it's either cached
+#    or was explicitly specified with -D on the command-line. In either
+#    case, force it into the cache so it will be remembered in future runs.
+# 2. Otherwise, we do NOT want to cache PRODUCT_VERSION, which will force
+#    CMake to re-discover it every time. In that case, the build number
+#    will always be "0000", and:
+#    2a. If "python" can be found, get the version from the manifest.
+#    2b. Otherwise, use the fallback version "0.0.0".
+IF (DEFINED PRODUCT_VERSION)
+  SET (PRODUCT_VERSION "${PRODUCT_VERSION}" CACHE STRING "Product version with build number" FORCE)
+ELSE ()
+  SET (_product_version)
+  IF (WIN32)
+    SET (_repo_cmd repo.cmd)
+  ELSE ()
+    SET (_repo_cmd repo)
+  ENDIF ()
+  EXECUTE_PROCESS(
+    COMMAND ${_repo_cmd} manifest -r
+    COMMAND python cmake/get_version.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE _product_version
+    ERROR_VARIABLE _err_output
+    RESULTS_VARIABLE _result
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  IF (NOT _result STREQUAL "0;0")
+    SET (PRODUCT_VERSION "0.0.0")
+  ELSE ()
+    SET (PRODUCT_VERSION "${_product_version}")
+  ENDIF ()
+ENDIF ()
+MESSAGE (STATUS "Building Couchbase ODBC Driver version ${PRODUCT_VERSION}")
+
 project (
     couchbase-odbc
-    VERSION 1.0.0.00000000
+    VERSION ${PRODUCT_VERSION}
     DESCRIPTION "The official ODBC driver implementation for accessing couchbase as a data source."
     HOMEPAGE_URL "https://github.com/couchbaselabs/couchbase-odbc-driver.git"
     LANGUAGES C CXX
