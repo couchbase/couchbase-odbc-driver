@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <chrono>
 #include <string>
+using namespace std::chrono;
 
 /**
 * The lossless-adm format is used to preserve precision when dealing with double data type.
@@ -11,25 +12,27 @@
 * <p/>
 * https://github.com/couchbase/asterixdb/blob/fc0cbd0f5b0002a3fc4b15820143af56c88616d6/asterixdb/asterix-om/src/main/java/org/apache/asterix/formats/nontagged/LosslessADMJSONPrinterFactoryProvider.java#L76
 * <p/>
+* The date.h library used is: https://github.com/HowardHinnant/date/blob/master/include/date/date.h
+* <p/>
 */
 
 /**
-    Converts the number of full calendar days since 1970-01-01 to YYYY:MM:DD Date value.
+    Converts number of full calendar days since 1970-01-01 to YYYY:MM:DD Date value.
     @param[in] days Integer value representing days since epoch.
     \return         String value reprsenting date
 */
-std::string convertEpochDaysToDateString(long int days);
+std::string convertDaysSinceEpochToDateString(long int days);
 
 /**
-    Converts milliseconds since 1970-01-01T00:00:00.000Z. to hh:mm:ss Time format.
-    @param[in] days Integer value representing milliseconds since epoch.
+    Converts number of milliseconds since beginning of the day to hh:mm:ss Time format.
+    @param[in] days Integer value representing milliseconds since since beginning of the day.
     \return         String value reprsenting time
 */
-std::string convertEpochMillisecondsToTimeString(long long int);
+std::string convertMillisecondsSinceBeginningOfDayToTimeString(long long int);
 
 /**
-    Converts milliseconds since 1970-01-01T00:00:00.000Z. to YYYY-MM-DD hh:mm:ss.s Datetime format.
+    Converts number of milliseconds since 1970-01-01T00:00:00.000Z. to YYYY-MM-DD hh:mm:ss.s Datetime format.
     @param[in] days Integer value representing milliseconds since epoch.
     \return         String value reprsenting datetime
 */
-std::string convertEpochMillisecondsToDateTimeString(long long int);
+std::string convertMillisecondsSinceEpochToDateTimeString(long long int);

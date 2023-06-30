@@ -115,7 +115,7 @@ bool CBASResultSet::readNextRow(Row & row) {
                             std::string daysInString = strVal.value.substr(3,strVal.value.length());
                             std::int32_t daysInt = std::stoi(daysInString);
 
-                            std::string dateInCorrectFormat = convertEpochDaysToDateString(daysInt);
+                            std::string dateInCorrectFormat = convertDaysSinceEpochToDateString(daysInt);
                             strVal.value = dateInCorrectFormat;
                         }
                     }
@@ -124,7 +124,7 @@ bool CBASResultSet::readNextRow(Row & row) {
                             std::string timeInString = strVal.value.substr(3);
 
                             std::int64_t timeLong = std::stoi(timeInString);
-                            std::string timeInCorrectFormat = convertEpochMillisecondsToTimeString(timeLong);
+                            std::string timeInCorrectFormat = convertMillisecondsSinceBeginningOfDayToTimeString(timeLong);
                             strVal.value = timeInCorrectFormat;
                         }
                     }
@@ -133,7 +133,7 @@ bool CBASResultSet::readNextRow(Row & row) {
                             std::string datetimeInString = strVal.value.substr(3);
                             long long milliseconds = std::stoll(datetimeInString);
 
-                            std::string datetimeInCorrectFormat = convertEpochMillisecondsToDateTimeString(milliseconds);
+                            std::string datetimeInCorrectFormat = convertMillisecondsSinceEpochToDateTimeString(milliseconds);
                             strVal.value = datetimeInCorrectFormat;
                         }
                     }

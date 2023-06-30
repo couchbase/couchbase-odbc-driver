@@ -1,69 +1,47 @@
 #include "driver/utils/lossless-adm_to_human-readable_format.h"
+#include "date.h"
+using namespace date;
 
-std::string convertEpochDaysToDateString(long days) {
-    auto epoch = std::chrono::system_clock::from_time_t(0);
-    auto time = epoch + std::chrono::hours(24) * days;
-    std::time_t currentTime = std::chrono::system_clock::to_time_t(time);
-    std::tm* timeInfo = std::gmtime(&currentTime);
+std::string convertDaysSinceEpochToDateString(long days) {
+    auto time = sys_days{date::January/1/1970} + date::days{days};
 
-    long year = timeInfo->tm_year + 1900;
-    long month = timeInfo->tm_mon + 1;
-    long day = timeInfo->tm_mday;
+    auto ymd = year_month_day{time};
+    auto year = static_cast<int>(ymd.year());
+    auto month = static_cast<unsigned int>(ymd.month());
+    auto day = static_cast<unsigned int>(ymd.day());
 
     char dateString[11];
-    std::sprintf(dateString, "%04ld:%02ld:%02ld", year, month, day);
+    std::sprintf(dateString, "%04d-%02u-%02u", year, month, day);
 
     return std::string(dateString);
 }
+std::string convertMillisecondsSinceBeginningOfDayToTimeString(long long milliseconds) {
+    // Convert milliseconds to duration
+    std::chrono::milliseconds duration(milliseconds);
 
-std::string convertEpochMillisecondsToTimeString(long long milliseconds) {
-    auto duration = std::chrono::milliseconds(milliseconds);
+    // Extract the time components
+    auto timeComponents = hh_mm_ss(duration);
 
-    auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
-    duration -= hours;
+    // Format the time string
+    char buffer[9];
+    std::sprintf(buffer, "%02d:%02d:%02d", timeComponents.hours().count(), timeComponents.minutes().count(), timeComponents.seconds().count());
 
-    auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
-    duration -= minutes;
-
-    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
-    duration -= seconds;
-
-    auto millisecondsRemain = duration.count();
-
-    std::string formattedTime;
-    formattedTime += std::to_string(hours.count() / 10);
-    formattedTime += std::to_string(hours.count() % 10);
-    formattedTime += ":";
-    formattedTime += std::to_string(minutes.count() / 10);
-    formattedTime += std::to_string(minutes.count() % 10);
-    formattedTime += ":";
-    formattedTime += std::to_string(seconds.count() / 10);
-    formattedTime += std::to_string(seconds.count() % 10);
-
-    return formattedTime;
+    return std::string(buffer);
 }
+std::string convertMillisecondsSinceEpochToDateTimeString(long long milliseconds) {
+    // Convert milliseconds to duration
+    std::chrono::milliseconds duration(milliseconds);
 
-std::string convertEpochMillisecondsToDateTimeString(long long milliseconds) {
-    // Convert epoch milliseconds to std::chrono::system_clock::time_point
-    auto timePoint = std::chrono::time_point<std::chrono::system_clock>(
-        std::chrono::milliseconds(milliseconds)
-    );
+    // Create a time_point representing the given milliseconds
+    auto tp = sys_time<system_clock::duration>{duration};
 
-    // Convert std::chrono::system_clock::time_point to std::tm
-    std::time_t currentTime = std::chrono::system_clock::to_time_t(timePoint);
-    std::tm* timeInfo = std::gmtime(&currentTime);
+    // Define the time zone offset
+    auto timeZoneOffset = 0h;  // UTC offset
 
-    // Format the date and time string
-    char buffer[24];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeInfo);
+    // Adjust the time point by adding the time zone offset
+    auto adjustedTimePoint = tp + timeZoneOffset;
 
-    // Get the remaining milliseconds
-    auto duration = timePoint.time_since_epoch();
-    auto millisecondsRemain = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() % 1000;
-
-    // Combine the formatted date and time string with milliseconds
-    char formattedDateTime[28];
-    std::snprintf(formattedDateTime, sizeof(formattedDateTime), "%s.%03lld", buffer, millisecondsRemain);
-
-    return std::string(formattedDateTime);
+    // Format the adjusted time point as a local time string
+    auto dateTimeString = format("%Y-%m-%d %H:%M:%S", adjustedTimePoint);
+    return dateTimeString.substr(0,23);
 }
