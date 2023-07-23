@@ -34,6 +34,7 @@
 #define INI_STRINGMAXLENGTH "StringMaxLength"
 #define INI_DRIVERLOG "DriverLog"
 #define INI_DRIVERLOGFILE   "DriverLogFile"
+#define INI_CERTIFICATEFILE_DEFAULT ""
 
 #if defined(UNICODE)
 #   define INI_DSN_DEFAULT          DSN_DEFAULT_UNICODE

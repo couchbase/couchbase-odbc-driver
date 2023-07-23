@@ -237,8 +237,8 @@ inline INT_PTR ConfigDlgProc_(
             SET_DLG_ITEM(bucket, IDC_BUCKET);
             SET_DLG_ITEM(username, IDC_USER);
             SET_DLG_ITEM(password, IDC_PASSWORD);
-            SET_DLG_ITEM(timeout, IDC_TIMEOUT);
             SET_DLG_ITEM(sslmode, IDC_SSLMODE);
+            SET_DLG_ITEM(certificate_file, IDC_CERTIFICATEFILE);
 
 #undef SET_DLG_ITEM
 
@@ -270,8 +270,8 @@ inline INT_PTR ConfigDlgProc_(
                     GET_DLG_ITEM(bucket, IDC_BUCKET);
                     GET_DLG_ITEM(username, IDC_USER);
                     GET_DLG_ITEM(password, IDC_PASSWORD);
-                    GET_DLG_ITEM(timeout, IDC_TIMEOUT);
                     GET_DLG_ITEM(sslmode, IDC_SSLMODE);
+                    GET_DLG_ITEM(certificate_file,IDC_CERTIFICATEFILE);
 
 #undef GET_DLG_ITEM
 

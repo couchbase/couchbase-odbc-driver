@@ -80,17 +80,14 @@ option(BUILD_TESTING "Build test targets" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 option (CH_ODBC_ALLOW_UNSAFE_DISPATCH "Allow unchecked handle dispatching (may slightly increase performance in some scenarios)" ON)
-option (CH_ODBC_ENABLE_SSL "Enable SSL (required for utilizing https:// interface, etc.)" ON)
 option (CH_ODBC_ENABLE_INSTALL "Enable install targets (required for packaging)" ON)
 cmake_dependent_option (CH_ODBC_USE_ICU "Use ICU library, instead of C++ STD, for Unicode conversions" ON "NOT MSVC" OFF)
 option (CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES "Prefer bundled over system variants of third party libraries" ON)
 cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_POCO "Prefer bundled over system variants of Poco library" ON "CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES" OFF)
-cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_SSL "Prefer bundled over system variants of SSL library" ON "CH_ODBC_PREFER_BUNDLED_POCO" OFF)
 cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_FOLLY "Prefer bundled over system variants of Folly library" ON "CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES" OFF)
 cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_ICU "Prefer bundled over system variants of ICU library" OFF "CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES" OFF)
 option (CH_ODBC_RUNTIME_LINK_STATIC "Link with compiler and language runtime statically" OFF)
 option (CH_ODBC_THIRD_PARTY_LINK_STATIC "Link with third party libraries statically" ON)
-option (LCB_USE_HDR_HISTOGRAM "Use HdrHistogram for statistics recording" OFF)
 
 set (CH_ODBC_DEFAULT_DSN_ANSI "Couchbase DSN (ANSI)" CACHE STRING "Default ANSI DSN name")
 set (CH_ODBC_DEFAULT_DSN_UNICODE "Couchbase DSN (Unicode)" CACHE STRING "Default Unicode DSN name")
@@ -154,24 +151,6 @@ include (cmake/sanitize.cmake)
 
 find_package (Threads REQUIRED)
 find_package (ODBC REQUIRED)
-
-if (CH_ODBC_ENABLE_SSL)
-    if (NOT CH_ODBC_PREFER_BUNDLED_SSL)
-        if (CH_ODBC_THIRD_PARTY_LINK_STATIC)
-            set (OPENSSL_USE_STATIC_LIBS TRUE)
-        endif ()
-
-        if (CH_ODBC_RUNTIME_LINK_STATIC)
-            set (OPENSSL_MSVC_STATIC_RT TRUE)
-        endif ()
-
-        find_package (OpenSSL)
-    endif ()
-endif ()
-
-if (NOT CH_ODBC_PREFER_BUNDLED_POCO)
-    find_package (Poco COMPONENTS Foundation Net NetSSL)
-endif ()
 
 if (NOT CH_ODBC_PREFER_BUNDLED_FOLLY)
     message (WARNING "Folly: using system variant of the library currently not supported")

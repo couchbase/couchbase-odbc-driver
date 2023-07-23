@@ -83,6 +83,11 @@ public:
     template <typename T> void deallocateChild(SQLHANDLE) noexcept;
 
     std::string handleNativeSql(const std::string& q);
+
+    //Build Connection String
+    void buildConnStrWithPortInSSLMode(char *);
+    void buildConnStrWithoutPortInSSLMode(char *);
+    void buildConnStrWithPortWithoutSSL(char *);
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

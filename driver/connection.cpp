@@ -15,45 +15,6 @@ lcb_STATUS lcb_createopts_connstr(lcb_CREATEOPTS *,const char *,size_t);
 lcb_STATUS lcb_createopts_credentials(lcb_CREATEOPTS *, const char *,size_t , const char *, size_t );
 }
 
-
-#if !defined(WORKAROUND_DISABLE_SSL)
-#    include <Poco/Net/AcceptCertificateHandler.h>
-#    include <Poco/Net/RejectCertificateHandler.h>
-
-#    include <Poco/Net/HTTPSClientSession.h>
-#    include <Poco/Net/InvalidCertificateHandler.h>
-#    include <Poco/Net/PrivateKeyPassphraseHandler.h>
-#    include <Poco/Net/SSLManager.h>
-#endif
-
-std::once_flag ssl_init_once;
-
-#if !defined(WORKAROUND_DISABLE_SSL)
-void SSLInit(bool ssl_strict, const std::string & private_key_file, const std::string & certificate_file, const std::string & caLocation) {
-// http://stackoverflow.com/questions/18315472/https-request-in-c-using-poco
-    Poco::Net::initializeSSL();
-    Poco::SharedPtr<Poco::Net::InvalidCertificateHandler> ptrHandler;
-    if (ssl_strict)
-        ptrHandler = new Poco::Net::RejectCertificateHandler(false);
-    else
-        ptrHandler = new Poco::Net::AcceptCertificateHandler(false);
-    Poco::Net::Context::Ptr ptrContext = new Poco::Net::Context(Poco::Net::Context::CLIENT_USE,
-        private_key_file
-#    if !defined(SECURITY_WIN32)
-        // Do not work with poco/NetSSL_Win:
-        ,
-        certificate_file,
-        caLocation,
-        ssl_strict ? Poco::Net::Context::VERIFY_STRICT : Poco::Net::Context::VERIFY_RELAXED,
-        9,
-        true,
-        "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
-#    endif
-    );
-    Poco::Net::SSLManager::instance().initializeClient(0, ptrHandler, ptrContext);
-}
-#endif
-
 std::string GenerateSessionId() {
     std::mt19937 generator(std::random_device{}());
     std::uniform_int_distribution<std::uint64_t> distribution(0);
@@ -149,17 +110,20 @@ void Connection::connect(const std::string & connection_string) {
     const char * cb_username = username.c_str();
     const char * cb_password = password.c_str();
     char conn_str[1024];
-    const std::string EMPTY_STRING = "";
-    if (port != 0 && !proto.empty()) {
-        if (sprintf(conn_str, "couchbase://%s:%d=%s/%s", server.c_str(), port, proto.c_str(), bucket.c_str()) >= 1024) {
-            std::cout << "Insufficient conn_str buffer space\n";
+    bool connectInSSLMode = sslmode == "require" ? true : false;
+    bool portIsProvided = port != 0 ? true :false;
+    if (connectInSSLMode){
+        if(portIsProvided){
+            buildConnStrWithPortInSSLMode(conn_str);
         }
-    } else if (port == 0 && proto == EMPTY_STRING) {
-        if (sprintf(conn_str, "couchbase://%s/%s", server.c_str(), bucket.c_str()) >= 1024) {
-            std::cout << "Insufficient conn_str buffer space\n";
+        else {
+            buildConnStrWithoutPortInSSLMode(conn_str);
         }
-    } else {
-        LOG("Invalid Config, Either supply both port and proto or none\n");
+    }
+    else {
+        if(portIsProvided){
+            buildConnStrWithPortWithoutSSL(conn_str);
+        }
     }
     lcb_CREATEOPTS * lcb_create_options = NULL;
     lcb_createopts_create(&lcb_create_options, LCB_TYPE_BUCKET);
@@ -621,4 +585,25 @@ std::string Connection::handleNativeSql(const std::string & q) {
     std::string query = statement.nativeSql(q);
     statement.deallocateSelf();
     return query;
+}
+
+void Connection::buildConnStrWithPortInSSLMode(char *conn_str) {
+    //couchbases://Host:port/bucketName?truststorepath=path/to/certificate_file
+    if(sprintf(conn_str, "couchbases://%s:%hu/%s?truststorepath=%s",server.c_str(),port,bucket.c_str(),certificate_file.c_str())>=1024){
+        std::cout << "Insufficient conn_str buffer space\n";
+    }
+}
+
+void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
+    //Connection String/bucketName?truststorepath=path/to/certificate_file
+    if(sprintf(conn_str, "%s/%s?truststorepath=%s",url.c_str(),bucket.c_str(),certificate_file.c_str())>=1024){
+        std::cout << "Insufficient conn_str buffer space\n";
+    }
+}
+
+void Connection::buildConnStrWithPortWithoutSSL(char *conn_str){
+     //couchbase://Host:port=http/bucketName
+    if (sprintf(conn_str, "couchbase://%s:%hu=http/%s", server.c_str(), port, bucket.c_str()) >= 1024) {
+        std::cout << "Insufficient conn_str buffer space\n";
+        }
 }
