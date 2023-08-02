@@ -16,13 +16,13 @@
     // DECLARE2(DEGREES, ""),
     DECLARE2(EXP, "exp"),
     DECLARE2(FLOOR, "floor"),
-    DECLARE2(LOG, "log"),
-    DECLARE2(LOG10, "log10"),
-    DECLARE2(MOD, "modulo"),
+    DECLARE2(LOG, "ln"),
+    DECLARE2(LOG10, "log"),
+    DECLARE2(MOD, "MOD"),
     DECLARE2(PI, "pi"),
-    DECLARE2(POWER, "pow"),
+    DECLARE2(POWER, "power"),
     // DECLARE2(RADIANS, ""),
-    DECLARE2(RAND, "rand"),
+    DECLARE2(RAND, "random"),
     DECLARE2(ROUND, "round"),
     // DECLARE2(SIGN, ""),
     DECLARE2(SIN, "sin"),
@@ -34,29 +34,29 @@
     // ASCII
     // BIT_LENGTH
     // CHAR
-    DECLARE2(CHAR_LENGTH, "lengthUTF8"),
-    DECLARE2(CHARACTER_LENGTH, "lengthUTF8"),
+    DECLARE2(CHAR_LENGTH, "length"),
+    DECLARE2(CHARACTER_LENGTH, "length"),
     DECLARE2(CONCAT, "concat"),
     // DIFFERENCE
     // INSERT
-    DECLARE2(LCASE, "lowerUTF8"),
-    DECLARE2(LOWER, "lowerUTF8"),
+    DECLARE2(LCASE, "lower"),
+    DECLARE2(LOWER, "lower"),
     // LEFT  substring(s, 0, length)
-    DECLARE2(LENGTH, "lengthUTF8"),
+    DECLARE2(LENGTH, "length"),
     DECLARE2(LOCATE, "" /* "position" */), // special handling
     DECLARE2(CONVERT, ""), // special handling
     DECLARE2(LTRIM, ""), // special handling
     DECLARE2(OCTET_LENGTH, "length"),
     // POSITION
     // REPEAT
-    DECLARE2(REPLACE, "replaceAll"),
+    DECLARE2(REPLACE, "replace"),
     // RIGHT
     // RTRIM
     // SOUNDEX
     // SPACE
-    DECLARE2(SUBSTRING, "substringUTF8"),
-    DECLARE2(UCASE, "upperUTF8"),
-    DECLARE2(UPPER, "upperUTF8"),
+    DECLARE2(SUBSTRING, "substr"),
+    DECLARE2(UCASE, "upper"),
+    DECLARE2(UPPER, "upper"),
 
 
     // Date
