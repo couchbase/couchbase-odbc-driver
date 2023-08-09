@@ -187,14 +187,6 @@ add_subdirectory (driver)
 
 
 if (CH_ODBC_ENABLE_INSTALL)
-    if (NOT WIN32)
-        install (
-            FILES packaging/odbcinst.ini.sample packaging/odbc.ini.sample
-            DESTINATION ${CMAKE_INSTALL_DOCDIR}/config
-            COMPONENT Documentation
-        )
-    endif ()
-
     install(
         FILES packaging/couchbase-odbc.tdc.sample
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/config
