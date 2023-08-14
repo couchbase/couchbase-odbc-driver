@@ -1,10 +1,10 @@
 #include "driver/api/impl/impl.h"
-#include "driver/utils/utils.h"
-#include "driver/driver.h"
-#include "driver/environment.h"
-#include "driver/connection.h"
-#include "driver/descriptor.h"
-#include "driver/statement.h"
+#include "driver/utils/include/utils.h"
+#include "driver/include/driver.h"
+#include "driver/include/environment.h"
+#include "driver/include/connection.h"
+#include "driver/include/descriptor.h"
+#include "driver/include/statement.h"
 #include <new>
 #include <ostream>
 #include <type_traits>

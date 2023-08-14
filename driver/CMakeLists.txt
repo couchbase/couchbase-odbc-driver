@@ -46,80 +46,80 @@ unset (WORKAROUND_ENABLE_NO_UNICODE_CHARS_IN_COLUMN_NAMES_IN_TESTS)
 
 # In order to enable testing, put every non-public symbol to a static library (which is then used by shared library and unit-test binary).
 add_library (${libname}-impl STATIC
-    utils/type_parser.cpp
-    utils/type_info.cpp
-    utils/unicode_converter.cpp
-    utils/conversion_context.cpp
-    utils/ieee_754_converter.cpp
-    utils/lossless-adm_to_human-readable_format.cpp
+    utils/source/type_parser.cpp
+    utils/source/type_info.cpp
+    utils/source/unicode_converter.cpp
+    utils/source/conversion_context.cpp
+    utils/source/ieee_754_converter.cpp
+    utils/source/lossless-adm_to_human-readable_format.cpp
 
     config/config.cpp
 
-    escaping/escape_sequences.cpp
-    escaping/lexer.cpp
+    escaping/source/escape_sequences.cpp
+    escaping/source/lexer.cpp
 
-    format/ODBCDriver2.cpp
-    format/CBAS.cpp
-    format/RowBinaryWithNamesAndTypes.cpp
+    format/source/ODBCDriver2.cpp
+    format/source/CBAS.cpp
+    format/source/RowBinaryWithNamesAndTypes.cpp
 
     api/impl/impl.cpp
 
-    attributes.cpp
-    connection.cpp
-    cJSON.c
-    descriptor.cpp
-    diagnostics.cpp
-    driver.cpp
-    environment.cpp
-    exception.cpp
-    object.cpp
-    result_set.cpp
-    statement.cpp
+    source/attributes.cpp
+    source/connection.cpp
+    source/cJSON.c
+    source/descriptor.cpp
+    source/diagnostics.cpp
+    source/driver.cpp
+    source/environment.cpp
+    source/exception.cpp
+    source/object.cpp
+    source/result_set.cpp
+    source/statement.cpp
 
 
     ${CMAKE_CURRENT_BINARY_DIR}/platform/config_cmake${WIDECHAR_SUFFIX}.h
     platform/platform.h
 
-    utils/utils.h
-    utils/iostream_debug_helpers.h
-    utils/amortized_istream_reader.h
-    utils/resize_without_initialization.h
-    utils/object_pool.h
-    utils/string_pool.h
-    utils/unicode_converter.h
-    utils/conversion_context.h
-    utils/conversion.h
-    utils/conversion_std.h
-    utils/conversion_icu.h
-    utils/type_parser.h
-    utils/type_info.h
-    utils/ieee_754_converter.h
+    utils/include/utils.h
+    utils/include/iostream_debug_helpers.h
+    utils/include/amortized_istream_reader.h
+    utils/include/resize_without_initialization.h
+    utils/include/object_pool.h
+    utils/include/string_pool.h
+    utils/include/unicode_converter.h
+    utils/include/conversion_context.h
+    utils/include/conversion.h
+    utils/include/conversion_std.h
+    utils/include/conversion_icu.h
+    utils/include/type_parser.h
+    utils/include/type_info.h
+    utils/include/ieee_754_converter.h
 
     config/config.h
     config/ini_defines.h
 
-    escaping/escape_sequences.h
-    escaping/lexer.h
-    escaping/lexer_declare.h
-    escaping/function_declare.h
+    escaping/include/escape_sequences.h
+    escaping/include/lexer.h
+    escaping/include/lexer_declare.h
+    escaping/include/function_declare.h
 
     api/impl/impl.h
 
-    format/ODBCDriver2.h
-    format/CBAS.h
-    format/RowBinaryWithNamesAndTypes.h
+    format/include/ODBCDriver2.h
+    format/include/CBAS.h
+    format/include/RowBinaryWithNamesAndTypes.h
 
-    attributes.h
-    connection.h
-    cJSON.h
-    descriptor.h
-    diagnostics.h
-    driver.h
-    environment.h
-    exception.h
-    object.h
-    result_set.h
-    statement.h
+    include/attributes.h
+    include/connection.h
+    include/cJSON.h
+    include/descriptor.h
+    include/diagnostics.h
+    include/driver.h
+    include/environment.h
+    include/exception.h
+    include/object.h
+    include/result_set.h
+    include/statement.h
 )
 
 set (WIN_SOURCES)

@@ -1,8 +1,8 @@
-#include "driver/utils/utils.h"
+#include "driver/utils/include/utils.h"
 #include "driver/config/config.h"
 #include "driver/config/ini_defines.h"
-#include "driver/driver.h"
-#include "driver/environment.h"
+#include "driver/include/driver.h"
+#include "driver/include/environment.h"
 
 #include <odbcinst.h>
 

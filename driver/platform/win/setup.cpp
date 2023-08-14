@@ -2,8 +2,8 @@
 
 #include "driver/platform/platform.h"
 #include "driver/platform/win/resource.h"
-#include "driver/utils/utils.h"
-#include "driver/utils/conversion.h"
+#include "driver/utils/include/utils.h"
+#include "driver/utils/include/conversion.h"
 #include "driver/config/config.h"
 #include "driver/config/ini_defines.h"
 
