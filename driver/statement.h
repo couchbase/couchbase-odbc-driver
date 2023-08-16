@@ -57,6 +57,7 @@ public:
     bool is_set_stmt_query_timeout;
     void handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator = std::unique_ptr<ResultMutator>{});
     long long getMillisecondsFromODBCtimestamp(const std::string& timestamp_exp);
+    std::vector<std::string>* expected_column_order = nullptr;
 private:
     void requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mutator);
     static void queryCallback(lcb_INSTANCE * instance, int type, const lcb_RESPANALYTICS * resp);

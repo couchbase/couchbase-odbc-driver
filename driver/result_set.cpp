@@ -328,7 +328,8 @@ std::unique_ptr<ResultReader> make_result_reader(const std::string & format,
     const std::string & timezone,
     std::istream & raw_stream,
     std::unique_ptr<ResultMutator> && mutator,
-    CallbackCookie & cbCookie) {
+    CallbackCookie & cbCookie,
+    std::vector<std::string>* expected_column_order) {
     if (format == "ODBCDriver2") {
         return std::make_unique<ODBCDriver2ResultReader>(timezone, raw_stream, std::move(mutator));
     }
@@ -338,7 +339,7 @@ std::unique_ptr<ResultReader> make_result_reader(const std::string & format,
 
         return std::make_unique<RowBinaryWithNamesAndTypesResultReader>(timezone, raw_stream, std::move(mutator));
     } else if (format == "CBAS") {
-        return std::make_unique<CBASResultReader>(timezone, raw_stream, std::move(mutator), cbCookie);
+        return std::make_unique<CBASResultReader>(timezone, raw_stream, std::move(mutator), cbCookie, expected_column_order);
     }
 
     throw std::runtime_error("'" + format + "' format is not supported");

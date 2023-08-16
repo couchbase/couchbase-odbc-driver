@@ -8,10 +8,12 @@ public:
     explicit CBASResultSet(const std::string & timezone,
         AmortizedIStreamReader & stream,
         std::unique_ptr<ResultMutator> && mutator,
-        CallbackCookie & cbCookie);
+        CallbackCookie & cbCookie,
+        std::vector<std::string>* expected_column_order);
     virtual ~CBASResultSet() override = default;
 
     CallbackCookie & cookie;
+    std::vector<int> indexMapper;
 
 
 protected:
@@ -21,7 +23,7 @@ protected:
 class CBASResultReader : public ResultReader {
 public:
     explicit CBASResultReader(
-        const std::string & timezone_, std::istream & raw_stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie);
+        const std::string & timezone_, std::istream & raw_stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie, std::vector<std::string>* expected_column_order);
     virtual ~CBASResultReader() override = default;
 
     virtual bool advanceToNextResultSet() override;

@@ -171,7 +171,8 @@ std::unique_ptr<ResultReader> make_result_reader(const std::string & format,
     const std::string & timezone,
     std::istream & raw_stream,
     std::unique_ptr<ResultMutator> && mutator,
-    CallbackCookie & cbCookie);
+    CallbackCookie & cbCookie,
+    std::vector<std::string>* expected_column_order);
 
 template <typename ConversionContext>
 SQLRETURN Field::extract(BindingInfo & binding_info, ConversionContext && context) const {

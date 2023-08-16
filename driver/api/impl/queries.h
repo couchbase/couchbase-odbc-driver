@@ -183,7 +183,7 @@ const char query_foreign_keys_pk_where[] = "AND PKTABLE_CAT = fkTable_pk_CAT"
             "                                     DELETE_RULE,"
             "                                     NULL FK_NAME,"
             "                                     NULL PK_NAME,"
-            "                                     DEFERRABILITY) AS subquery";
+            "                                     DEFERRABILITY ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ) AS subquery";
 
 const char query_foreign_keys_fk_where[] = "AND PKTABLE_CAT = fkTable_pk_CAT "
             "    AND PKTABLE_SCHEM = fkTable_pk_SCHEM "
@@ -201,7 +201,7 @@ const char query_foreign_keys_fk_where[] = "AND PKTABLE_CAT = fkTable_pk_CAT "
             "                                     DELETE_RULE, "
             "                                     NULL FK_NAME, "
             "                                     NULL PK_NAME, "
-            "                                     DEFERRABILITY) AS subquery ";
+            "                                     DEFERRABILITY PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, KEY_SEQ) AS subquery ";
 
 
 const char query_sql_columns[] = "SELECT TABLE_CAT"                                   //1

@@ -6,7 +6,7 @@
 #include "driver/utils/lossless-adm_to_human-readable_format.h"
 
 CBASResultSet::CBASResultSet(
-    const std::string & timezone, AmortizedIStreamReader & stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie)
+    const std::string & timezone, AmortizedIStreamReader & stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie, std::vector<std::string>* expected_column_order)
     : cookie(cbCookie), ResultSet(stream, std::move(mutator)) {
     cJSON * json;
     json = cJSON_Parse(cookie.queryMeta.c_str());
@@ -17,18 +17,43 @@ CBASResultSet::CBASResultSet(
             if (names && names->type == cJSON_Array) {
                 std::int32_t columns_count = cJSON_GetArraySize(names);
                 columns_info.resize(columns_count);
-
+                //create the index mapper if expected_column_order is not null
                 cJSON * name = names->child;
                 int cIdx = 0;
-                while (name) {
-                    if (name->type == cJSON_String) {
-                        columns_info[cIdx].name = name->valuestring;
-                    }
-                    name = name->next;
-                    cIdx++;
-                }
-            }
+                if (expected_column_order != nullptr && expected_column_order->size() == columns_count) {
+                    indexMapper.resize(columns_count);
+                    for (std::string& str : *expected_column_order) {
+                        std::transform(str.begin(), str.end(), str.begin(),
+                                    [](unsigned char c) { return std::tolower(c); });
+                        }
+                    while (name) {
+                        if (name->type == cJSON_String) {
+                            std::string name_value = name->valuestring;
+                            std::string lowercase_name = name_value;
+                            std::transform(lowercase_name.begin(), lowercase_name.end(), lowercase_name.begin(),
+                                        [](unsigned char c) { return std::tolower(c); });
+                            auto present = std::find(expected_column_order->begin(), expected_column_order->end(), lowercase_name);
 
+                            if (present != expected_column_order->end()) {
+                                size_t index = std::distance(expected_column_order->begin(), present);
+                                indexMapper[cIdx] = static_cast<int>(index);
+                                columns_info[indexMapper[cIdx]].name = name_value;
+                            } 
+                        }
+                        name = name->next;
+                        cIdx++;
+                    }
+                } else {
+                        while (name) {
+                        if (name->type == cJSON_String) {
+                            columns_info[cIdx].name = name->valuestring;
+                        }
+                        name = name->next;
+                        cIdx++;
+                    }
+                }
+                
+            }
             cJSON * types = cJSON_GetObjectItem(signature, "type");
             if (types && types->type == cJSON_Array) {
                 std::int32_t columns_count = cJSON_GetArraySize(types);
@@ -37,8 +62,7 @@ CBASResultSet::CBASResultSet(
                 cJSON * type = types->child;
                 int cIdx = 0;
                 while (type) {
-                    auto & column_info = columns_info[cIdx];
-
+                    auto & column_info = indexMapper.size() > cIdx ? columns_info[indexMapper[cIdx]] : columns_info[cIdx];
                     if (type->type == cJSON_String) {
                         auto typeIterator = cb_to_ch_types_g.find(type->valuestring);
                         if (typeIterator != cb_to_ch_types_g.end()) {
@@ -74,6 +98,7 @@ CBASResultSet::CBASResultSet(
 
     cookie.queryMeta.clear();
     finished = columns_info.empty();
+    expected_column_order = nullptr;
 }
 
 bool CBASResultSet::readNextRow(Row & row) {
@@ -82,14 +107,13 @@ bool CBASResultSet::readNextRow(Row & row) {
         cJSON * json;
         json = cJSON_Parse(doc.c_str());
         if (json && json->type == cJSON_Object) {
-            cJSON * col = json->child;
             int cIdx = 0;
-            while (col) {
-                auto & column_info = columns_info[cIdx];
-
+            while (cIdx < columns_info.size()) {
+                auto & column_info = indexMapper.size() > cIdx ? columns_info[indexMapper[cIdx]] : columns_info[cIdx];
                 DataSourceType<DataSourceTypeId::String> strVal;
                 value_manip::to_null(strVal.value);
-
+                const char* json_key = column_info.name.c_str();
+                cJSON * col = cJSON_GetObjectItem(json, json_key);
                 bool is_null = false;
                 if (col->type == cJSON_String) { // Handle String, Double, Date, Time, DateTime
                     strVal.value = col->valuestring;
@@ -150,14 +174,12 @@ bool CBASResultSet::readNextRow(Row & row) {
                 }
 
                 if (is_null) {
-                    row.fields[cIdx].data = DataSourceType<DataSourceTypeId::Nothing> {};
+                    row.fields[(indexMapper.size() > cIdx) ? indexMapper[cIdx] : cIdx].data = DataSourceType<DataSourceTypeId::Nothing> {};
                 } else {
                     if (column_info.display_size_so_far < strVal.value.size())
                         column_info.display_size_so_far = strVal.value.size();
-                    row.fields[cIdx].data = std::move(strVal);
+                    row.fields[(indexMapper.size() > cIdx) ? indexMapper[cIdx] : cIdx].data = std::move(strVal);
                 }
-
-                col = col->next;
                 cIdx++;
             }
         }
@@ -170,9 +192,9 @@ bool CBASResultSet::readNextRow(Row & row) {
 }
 
 CBASResultReader::CBASResultReader(
-    const std::string & timezone_, std::istream & raw_stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie)
+    const std::string & timezone_, std::istream & raw_stream, std::unique_ptr<ResultMutator> && mutator, CallbackCookie & cbCookie, std::vector<std::string>* expected_column_order)
     : ResultReader(timezone_, raw_stream, std::move(mutator)) {
-    result_set = std::make_unique<CBASResultSet>(timezone, stream, releaseMutator(), cbCookie);
+    result_set = std::make_unique<CBASResultSet>(timezone, stream, releaseMutator(), cbCookie, expected_column_order);
 }
 
 bool CBASResultReader::advanceToNextResultSet() {

@@ -970,6 +970,13 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
             }
             query << " ORDER BY TABLE_TYPE, TABLE_CAT, TABLE_SCHEM, TABLE_NAME";
         }
+        std::vector<std::string> array = { "TABLE_CAT"
+                                         , "TABLE_SCHEM"
+                                         , "TABLE_NAME"
+                                         , "TABLE_TYPE"
+                                         , "REMARKS"
+                                         };
+        statement.expected_column_order = &array;
         statement.executeQuery(query.str());
 
         return SQL_SUCCESS;
@@ -1479,6 +1486,22 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(
             query << query_foreign_keys_fk_where;
 
         }
+        std::vector<std::string> array = { "PKTABLE_CAT"
+                                         , "PKTABLE_SCHEM"
+                                         , "PKTABLE_NAME"
+                                         , "PKCOLUMN_NAME"
+                                         , "FKTABLE_CAT"
+                                         , "FKTABLE_SCHEM"
+                                         , "FKTABLE_NAME"
+                                         , "FKCOLUMN_NAME"
+                                         , "KEY_SEQ"
+                                         , "UPDATE_RULE"
+                                         , "DELETE_RULE"
+                                         , "FK_NAME"
+                                         , "PK_NAME"
+                                         , "DEFERRABILITY"
+                                         };
+        statement.expected_column_order = &array;
         statement.executeQuery(query.str());
         return SQL_SUCCESS;
 
@@ -1534,7 +1557,14 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLPrimaryKeys)(
 
         query << " ORDER BY TABLE_CAT, TABLE_SCHEM, TABLE_NAME";
 
-
+        std::vector<std::string> array = { "TABLE_CAT"
+                                         , "TABLE_SCHEM"
+                                         , "TABLE_NAME"
+                                         , "COLUMN_NAME"
+                                         , "KEY_SEQ"
+                                         , "PK_NAME"
+                                         };
+        statement.expected_column_order = &array;
         statement.executeQuery(query.str());
         return SQL_SUCCESS;
 
@@ -1606,6 +1636,27 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedureColumns)(
 
         query << " ORDER BY PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME, COLUMN_TYPE";
 
+        std::vector<std::string> array = { "PROCEDURE_CAT"
+                                         , "PROCEDURE_SCHEM"
+                                         , "PROCEDURE_NAME"
+                                         , "COLUMN_NAME"
+                                         , "COLUMN_TYPE"
+                                         , "DATA_TYPE"
+                                         , "TYPE_NAME"
+                                         , "COLUMN_SIZE"
+                                         , "BUFFER_LENGTH"
+                                         , "DECIMAL_DIGITS"
+                                         , "NUM_PREC_RADIX"
+                                         , "NULLABLE"
+                                         , "REMARKS"
+                                         , "COLUMN_DEF"
+                                         , "SQL_DATA_TYPE"
+                                         , "SQL_DATETIME_SUB"
+                                         , "CHAR_OCTET_LENGTH"
+                                         , "ORDINAL_POSITION"
+                                         , "IS_NULLABLE"
+                                         };
+        statement.expected_column_order = &array;
         statement.executeQuery(query.str());
 
         return SQL_SUCCESS;
@@ -1663,6 +1714,16 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedures)(
 
         query << " ORDER BY PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME";
 
+        std::vector<std::string> array = { "PROCEDURE_CAT"
+                                         , "PROCEDURE_SCHEM"
+                                         , "PROCEDURE_NAME"
+                                         , "NUM_INPUT_PARAMS"
+                                         , "NUM_OUTPUT_PARAMS"
+                                         , "NUM_RESULT_SETS"
+                                         , "REMARKS"
+                                         , "PROCEDURE_TYPE"
+                                         };
+        statement.expected_column_order = &array;
         statement.executeQuery(query.str());
         return SQL_SUCCESS;
 

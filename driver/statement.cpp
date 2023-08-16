@@ -231,7 +231,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
     lcb_cmdanalytics_destroy(cmd);
     lcb_wait(connection.lcb_instance, LCB_WAIT_DEFAULT);
 
-    result_reader = make_result_reader("CBAS", "absurd_time_zone", *in, std::move(mutator), cbCookie);
+    result_reader = make_result_reader("CBAS", "absurd_time_zone", *in, std::move(mutator), cbCookie, expected_column_order);
 
     if (cbCookie.errorInResponse == true) {
         cbCookie.errorInResponse = false;
@@ -818,7 +818,8 @@ void Statement::handleGetTypeInfo(std::unique_ptr<ResultMutator> && mutator) {
                       "crap",
                       *in,
                       std::move(mutator),
-                      cbCookie);
+                      cbCookie,
+                      nullptr);
 }
 std::string Statement::nativeSql(const std::string & q) {
     prepareQuery(q);
