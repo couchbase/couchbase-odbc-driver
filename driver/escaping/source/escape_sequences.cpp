@@ -241,28 +241,30 @@ string processFunction(const StringView seq, Lexer & lex) {
         if (!lex.Match(Token::LPARENT))
             return seq.to_string();
 
-        auto needle = processIdentOrFunction(seq, lex /*, false */);
+        auto needle = processIdentOrFunction(seq, lex);
         if (needle.empty())
             return seq.to_string();
         lex.Consume();
 
-        auto haystack = processIdentOrFunction(seq, lex /*, false*/);
+        auto haystack = processIdentOrFunction(seq, lex);
         if (haystack.empty())
             return seq.to_string();
         lex.Consume();
 
-        auto offset = processIdentOrFunction(seq, lex /*, false */);
+        auto offset = processIdentOrFunction(seq, lex);
+        if (offset.empty()) {
+            result = "locate(lower(" + needle + "),lower(" + haystack + "))";
+        } else {
+            result = result = "locate(lower(" + needle + "),lower(" + haystack + ")," + offset + ")";
+        }
         lex.Consume();
-
-        result = "position(" + haystack + "," + needle + ")";
-
         return result;
 
     } else if (fn.type == Token::LTRIM) {
         if (!lex.Match(Token::LPARENT))
             return seq.to_string();
 
-        auto param = processIdentOrFunction(seq, lex /*, false*/);
+        auto param = processIdentOrFunction(seq, lex);
         if (param.empty())
             return seq.to_string();
         lex.Consume();
@@ -272,7 +274,7 @@ string processFunction(const StringView seq, Lexer & lex) {
         if (!lex.Match(Token::LPARENT))
             return seq.to_string();
 
-        auto param = processIdentOrFunction(seq, lex /*, false*/);
+        auto param = processIdentOrFunction(seq, lex);
         if (param.empty())
             return seq.to_string();
         lex.Consume();
