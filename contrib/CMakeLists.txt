@@ -51,15 +51,6 @@ if (MSVC)
     endif ()
 endif ()
 
-# if (CH_ODBC_PREFER_BUNDLED_FOLLY OR NOT Folly_FOUND)
-#     if (NOT Folly_FOUND AND NOT CH_ODBC_PREFER_BUNDLED_FOLLY)
-#         message (WARNING "Folly: unable to find system Folly, falling back to using the bundled variant of the library")
-#     endif ()
-#
-#    add_subdirectory (folly)
-    set (FOLLY_INLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/folly" CACHE INTERNAL "")
-# endif ()
-
 # Some of the above may define this target.
 if (TARGET uninstall AND CMAKE_FOLDER)
     set_target_properties (uninstall PROPERTIES FOLDER "${CMAKE_FOLDER}")

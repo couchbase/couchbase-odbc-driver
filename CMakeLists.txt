@@ -84,7 +84,6 @@ option (CH_ODBC_ENABLE_INSTALL "Enable install targets (required for packaging)"
 cmake_dependent_option (CH_ODBC_USE_ICU "Use ICU library, instead of C++ STD, for Unicode conversions" ON "NOT MSVC" OFF)
 option (CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES "Prefer bundled over system variants of third party libraries" ON)
 cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_POCO "Prefer bundled over system variants of Poco library" ON "CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES" OFF)
-cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_FOLLY "Prefer bundled over system variants of Folly library" ON "CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES" OFF)
 cmake_dependent_option (CH_ODBC_PREFER_BUNDLED_ICU "Prefer bundled over system variants of ICU library" OFF "CH_ODBC_PREFER_BUNDLED_THIRD_PARTIES" OFF)
 option (CH_ODBC_RUNTIME_LINK_STATIC "Link with compiler and language runtime statically" OFF)
 option (CH_ODBC_THIRD_PARTY_LINK_STATIC "Link with third party libraries statically" ON)
@@ -151,11 +150,6 @@ include (cmake/sanitize.cmake)
 
 find_package (Threads REQUIRED)
 find_package (ODBC REQUIRED)
-
-if (NOT CH_ODBC_PREFER_BUNDLED_FOLLY)
-    message (WARNING "Folly: using system variant of the library currently not supported")
-#   find_package (Folly)
-endif ()
 
 if (CH_ODBC_USE_ICU)
     if (CH_ODBC_PREFER_BUNDLED_ICU)

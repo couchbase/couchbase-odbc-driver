@@ -2,6 +2,7 @@
 
 #include "driver/platform/platform.h"
 #include "driver/include/result_set.h"
+#include "driver/utils/include/folly_memory_UninitializedMemoryHacks.h"
 
 class ODBCDriver2ResultSet
     : public ResultSet
