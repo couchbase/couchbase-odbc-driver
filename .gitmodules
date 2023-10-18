@@ -1,6 +1,6 @@
 [submodule "contrib/poco"]
 	path = contrib/poco
-	url = https://github.com/ClickHouse-Extras/poco.git
+	url = https://github.com/pocoproject/poco
     branch = clickhouse-odbc
 [submodule "contrib/libcouchbase"]
 	path = contrib/libcouchbase
