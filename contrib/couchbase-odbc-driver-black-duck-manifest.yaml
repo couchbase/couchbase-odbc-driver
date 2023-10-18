@@ -1,0 +1,25 @@
+# Copyright 2020-Present Couchbase, Inc.
+#
+# Use of this software is governed by the Business Source License included in
+# the file licenses/BSL-Couchbase.txt.  As of the Change Date specified in that
+# file, in accordance with the Business Source License, use of this software
+# will be governed by the Apache License, Version 2.0, included in the file
+# licenses/APL2.txt.
+
+# Black Duck cannot identify any of the third-party dependencies we use, so
+# have to inform it by hand. This file is how we specify all third-party
+# dependencies; it will be consumed by the Black Duck scans.
+#
+# This should include all *transitive* dependencies as well. eg., for Poco,
+# it should include all packages that Poco embeds within itself. We will
+# have to manually extract those packages/versions.
+#
+# We also need to keep this file up-to-date. Whenever the Poco submodule is
+# updated, we must check the version of Poco and all transitive dependencies
+# and update this file by hand.
+
+components:
+
+    poco:
+        bd-id: 20f2def5-7976-452c-adcc-10f70751a804
+        versions: [ 1.9.4 ]
