@@ -6,6 +6,7 @@
 #include "driver/include/descriptor.h"
 #include "driver/include/statement.h"
 #include "driver/utils/include/utils.h"
+#include "driver/utils/include/WinReg_Value_Fetcher.h"
 
 #include <random>
 
@@ -112,6 +113,7 @@ void Connection::connect(const std::string & connection_string) {
     char conn_str[1024];
     bool connectInSSLMode = sslmode == "require" ? true : false;
     bool portIsProvided = port != 0 ? true :false;
+
     if (connectInSSLMode){
         if(portIsProvided){
             buildConnStrWithPortInSSLMode(conn_str);
@@ -126,7 +128,7 @@ void Connection::connect(const std::string & connection_string) {
         }
     }
     lcb_CREATEOPTS * lcb_create_options = NULL;
-    lcb_createopts_create(&lcb_create_options, LCB_TYPE_BUCKET);
+    lcb_createopts_create(&lcb_create_options, LCB_TYPE_CLUSTER);
     lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
     lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
     try {
@@ -595,8 +597,9 @@ void Connection::buildConnStrWithPortInSSLMode(char *conn_str) {
 }
 
 void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
-    //Connection String/bucketName?truststorepath=path/to/certificate_file
-    if(sprintf(conn_str, "%s/%s?truststorepath=%s",url.c_str(),bucket.c_str(),certificate_file.c_str())>=1024){
+    //Connection String?truststorepath=path/to/certificate_file
+    std::string GoldfishCertPath = getGoldfishCertPathWindows();
+    if(sprintf(conn_str, "%s?truststorepath=%s",url.c_str(),GoldfishCertPath.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
 }

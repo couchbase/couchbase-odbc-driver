@@ -182,11 +182,12 @@ add_subdirectory (driver)
 
 if (CH_ODBC_ENABLE_INSTALL)
     install(
-        FILES packaging/couchbase-odbc.tdc.sample
+        FILES
+            packaging/couchbase-odbc.tdc.sample
+            packaging/GoldfishCertificate.txt
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/config
         COMPONENT Documentation
     )
-
     set (CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT RuntimeLibraries)
     include (InstallRequiredSystemLibraries)
 

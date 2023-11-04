@@ -52,6 +52,7 @@ add_library (${libname}-impl STATIC
     utils/source/conversion_context.cpp
     utils/source/ieee_754_converter.cpp
     utils/source/lossless-adm_to_human-readable_format.cpp
+    utils/source/WinReg_Value_Fetcher.cpp
 
     config/config.cpp
 

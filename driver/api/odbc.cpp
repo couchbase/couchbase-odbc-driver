@@ -904,9 +904,8 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
                 query << "TABLE_SCHEM = null, ";
                 break;
             case 2:
-                query << "dvname = decode_dataverse_name(ds.DataverseName), ";
-                query << "TABLE_CAT = dvname[0], ";
-                query <<" sch = dvname[1],";
+                query << " TABLE_CAT = ds.DatabaseName,";
+                query <<" sch = ds.DataverseName,";
                 query << "TABLE_SCHEM = sch, ";
                 break;
             }
