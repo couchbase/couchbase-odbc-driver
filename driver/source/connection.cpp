@@ -114,16 +114,30 @@ void Connection::connect(const std::string & connection_string) {
     bool connectInSSLMode = sslmode == "require" ? true : false;
     bool portIsProvided = port != 0 ? true :false;
 
+    std::cout<<"\nLOG: username is :-> "<<username;
+    std::cout<<"\nLOG: password is :-> "<<password;
+    std::cout<<"\nLOG: sslmode is :-> "<<sslmode;
+    std::cout<<"\nLOG: URL is :-> "<<url;
+    std::cout<<"\nLOG: server is :-> "<<server;
+    std::cout<<"\nLOG: database is :-> "<<bucket;
+    std::cout<<"\nLOG: port is :-> "<<port;
+    std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
+    std::cout<<"\nLOG: portIsProvides is :-> "<<portIsProvided;
+
+
     if (connectInSSLMode){
         if(portIsProvided){
+            std::cout<<"\nLOG: Inside connectInSSLMode & portIsProvided is";
             buildConnStrWithPortInSSLMode(conn_str);
         }
         else {
+            std::cout<<"\nLOG: Inside connectInSSLMode & !portIsProvided is";
             buildConnStrWithoutPortInSSLMode(conn_str);
         }
     }
     else {
         if(portIsProvided){
+            std::cout<<"\nLOG: Inside !connectInSSLMode & portIsProvided is";
             buildConnStrWithPortWithoutSSL(conn_str);
         }
     }
@@ -597,11 +611,20 @@ void Connection::buildConnStrWithPortInSSLMode(char *conn_str) {
 }
 
 void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
+    #ifdef _WIN32
     //Connection String?truststorepath=path/to/certificate_file
     std::string GoldfishCertPath = getGoldfishCertPathWindows();
     if(sprintf(conn_str, "%s?truststorepath=%s",url.c_str(),GoldfishCertPath.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
+    std::cout<<"\nLOG: Inside buildConnStrWithoutPortInSSLMode WIN32 is :-> "<<conn_str;
+    #else 
+    //Connection String
+    if(sprintf(conn_str, "%s",url.c_str())>=1024){
+        std::cout << "Insufficient conn_str buffer space\n";
+    }
+    std::cout<<"\nLOG: Inside buildConnStrWithoutPortInSSLMode MAC is :-> "<<conn_str;
+    #endif
 }
 
 void Connection::buildConnStrWithPortWithoutSSL(char *conn_str){

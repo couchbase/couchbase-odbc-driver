@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include <windows.h>
 #include <iostream>
 #include <string>
@@ -6,3 +7,4 @@
 
 WCHAR* fetchDriverKeyDataFromCouchbaseODBCDriverWinReg();
 std::string getGoldfishCertPathWindows();
+#endif

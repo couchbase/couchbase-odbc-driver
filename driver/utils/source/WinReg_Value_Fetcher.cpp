@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "driver/utils/include/WinReg_Value_Fetcher.h"
 
 WCHAR* fetchDriverKeyDataFromCouchbaseODBCDriverWinReg(){
@@ -56,3 +57,4 @@ std::string getGoldfishCertPathWindows(){
     }
     return "";
 }
+#endif
