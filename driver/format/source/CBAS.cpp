@@ -38,7 +38,7 @@ CBASResultSet::CBASResultSet(
                                 size_t index = std::distance(expected_column_order->begin(), present);
                                 indexMapper[cIdx] = static_cast<int>(index);
                                 columns_info[indexMapper[cIdx]].name = name_value;
-                            } 
+                            }
                         }
                         name = name->next;
                         cIdx++;
@@ -52,7 +52,7 @@ CBASResultSet::CBASResultSet(
                         cIdx++;
                     }
                 }
-                
+
             }
             cJSON * types = cJSON_GetObjectItem(signature, "type");
             if (types && types->type == cJSON_Array) {

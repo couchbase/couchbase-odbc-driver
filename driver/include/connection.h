@@ -58,6 +58,7 @@ public:
     std::unique_ptr<Poco::Net::HTTPClientSession> session;
     int retry_count = 3;
     int redirect_limit = 10;
+    bool database_entity_support = false;
     lcb_INSTANCE* lcb_instance;
     explicit Connection(Environment & environment);
     // Lookup TypeInfo for given name of type.

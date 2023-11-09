@@ -179,7 +179,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
             default:
                 break;
         }
-        
+
 
         const auto param_name = getParamFinalName(i);
     }
@@ -241,7 +241,7 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
 
         throw std::runtime_error(str);
     }
-    
+
 
     ++next_param_set_idx;
 }

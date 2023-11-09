@@ -7,6 +7,7 @@
 #include "driver/include/statement.h"
 #include "driver/utils/include/utils.h"
 #include "driver/utils/include/WinReg_Value_Fetcher.h"
+#include "driver/utils/include/database_entity_support.h"
 
 #include <random>
 
@@ -159,6 +160,9 @@ void Connection::connect(const std::string & connection_string) {
     } catch (std::exception & ex) {
         throw SqlException("Connection not open", "08003");
     }
+
+    Statement statement(*this);
+    database_entity_support = checkDatabaseEntitySupport(statement);
 }
 
 void Connection::resetConfiguration() {
@@ -604,10 +608,11 @@ std::string Connection::handleNativeSql(const std::string & q) {
 }
 
 void Connection::buildConnStrWithPortInSSLMode(char *conn_str) {
-    //couchbases://Host:port/bucketName?truststorepath=path/to/certificate_file
-    if(sprintf(conn_str, "couchbases://%s:%hu/%s?truststorepath=%s",server.c_str(),port,bucket.c_str(),certificate_file.c_str())>=1024){
+    //couchbases://Host:port?truststorepath=path/to/certificate_file
+    if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s",server.c_str(),port,certificate_file.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
+    std::cout<<"\nLOG: Inside buildConnStrWithPortInSSLMode is :-> "<<conn_str;
 }
 
 void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
@@ -618,7 +623,7 @@ void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
         std::cout << "Insufficient conn_str buffer space\n";
     }
     std::cout<<"\nLOG: Inside buildConnStrWithoutPortInSSLMode WIN32 is :-> "<<conn_str;
-    #else 
+    #else
     //Connection String
     if(sprintf(conn_str, "%s",url.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
@@ -628,8 +633,9 @@ void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
 }
 
 void Connection::buildConnStrWithPortWithoutSSL(char *conn_str){
-     //couchbase://Host:port=http/bucketName
-    if (sprintf(conn_str, "couchbase://%s:%hu=http/%s", server.c_str(), port, bucket.c_str()) >= 1024) {
+     //couchbase://Host:port
+    if (sprintf(conn_str, "couchbase://%s:%hu", server.c_str(), port) >= 1024) {
         std::cout << "Insufficient conn_str buffer space\n";
         }
+    std::cout<<"\nLOG: Inside buildConnStrWithPortWithoutSSL :-> "<<conn_str;
 }
