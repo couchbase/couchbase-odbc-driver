@@ -897,18 +897,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
             query << " on ds.DatatypeDataverseName = dt.DataverseName ";
             query << " and ds.DatatypeName = dt.DatatypeName ";
             query << " let ";
-            switch (2)
-            {
-            case 1:
-                query << "TABLE_CAT = ds.DataverseName, ";
-                query << "TABLE_SCHEM = null, ";
-                break;
-            case 2:
-                query << " TABLE_CAT = ds.DatabaseName,";
-                query <<" sch = ds.DataverseName,";
-                query << "TABLE_SCHEM = sch, ";
-                break;
-            }
+            query << build_query_conditionally(statement).str();
             query << " TABLE_NAME = ds.DatasetName, ";
             query << " TABLE_TYPE = 'VIEW', ";
             query << " isView = ds.DatasetType = 'VIEW',";

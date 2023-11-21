@@ -1,4 +1,9 @@
-// file to store all the constant queries string
+#include <iostream>
+#include <string.h>
+#include <sstream>
+#include "driver/include/statement.h"
+
+std::stringstream build_query_conditionally(Statement&);
 
 const char query_primary_keys[] = "SELECT TABLE_CAT, "
         "       TABLE_SCHEM, "

@@ -65,6 +65,7 @@ add_library (${libname}-impl STATIC
     format/source/RowBinaryWithNamesAndTypes.cpp
 
     api/impl/impl.cpp
+    api/impl/queries.cpp
 
     source/attributes.cpp
     source/connection.cpp
