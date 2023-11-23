@@ -132,6 +132,18 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
             case NAME:           \
                 return fillOutputString<SQLTCHAR>(VALUE, out_value, out_value_max_length, out_value_length, true);
 
+#define CASE_NUM_WITH_CONDITION(NAME, TYPE, VALUE,CONDITION)                                             \
+    SQLRETURN ret;                                                                                       \
+    case NAME:                                                                                           \
+        if (!name)                                                                                       \
+            name = #NAME;                                                                                \
+        LOG("GetInfo: CASE_NUM_WITH_CONDITION" << name << ", type: " << #TYPE << ", value: " << #VALUE   \
+        << " = " << (VALUE) << ",condition: " << (CONDITION));                                           \
+        if(CONDITION)                                                                                    \
+            return fillOutputPOD<TYPE>(VALUE, out_value, out_value_length);                              \
+        else                                                                                             \
+             break;
+
             CASE_STRING(SQL_DRIVER_VER, VERSION_STRING)
             CASE_STRING(SQL_DRIVER_ODBC_VER, "03.80")
             CASE_STRING(SQL_DM_VER, "03.80.0000.0000")
@@ -206,7 +218,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
 
             /// UINTEGER non-empty bitmasks
             CASE_NUM(SQL_CATALOG_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION)
-            CASE_NUM(SQL_OWNER_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION)
+            CASE_NUM_WITH_CONDITION(SQL_SCHEMA_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION,connection.database_entity_support)
             CASE_NUM(SQL_AGGREGATE_FUNCTIONS,
                 SQLUINTEGER,
                 SQL_AF_ALL | SQL_AF_AVG | SQL_AF_COUNT | SQL_AF_DISTINCT | SQL_AF_MAX | SQL_AF_MIN | SQL_AF_SUM)
