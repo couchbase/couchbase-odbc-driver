@@ -125,6 +125,14 @@ void Connection::connect(const std::string & connection_string) {
     std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
     std::cout<<"\nLOG: portIsProvides is :-> "<<portIsProvided;
 
+    /*
+    During the private preview phase, temporarily call buildConnStrWithoutPortInSSLMode without specific conditions.
+    The connection to Capella Columnar is always encrypted, eliminating the need to prompt the user about SSL.
+    After the private preview, set up a Conditional DSN, offering options between on-prem and Capella Columnar.
+    This action should be triggered specifically for connections to  Capella Columnar.
+    */
+    buildConnStrWithoutPortInSSLMode(conn_str);
+
 
     if (connectInSSLMode){
         if(portIsProvided){
