@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <sql.h>
-#include <sqlext.h>
-
 #include "utils.h"
 
 int main() {

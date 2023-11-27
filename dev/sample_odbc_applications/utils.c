@@ -1,8 +1,10 @@
 #include "utils.h"
-#include <odbcinst.h>
-#include <stdio.h>
-#include <string.h>
 
+void check_error (SQLRETURN e,char * fn, SQLHANDLE handle, SQLSMALLINT type, FILE *fp ){
+    if(e != SQL_SUCCESS || e != SQL_SUCCESS_WITH_INFO ){
+        extract_error(fn,handle,type,fp);
+    }
+}
 
 void extract_error(char * fn, SQLHANDLE handle, SQLSMALLINT type, FILE *fp) {
     SQLINTEGER i = 0;
@@ -32,7 +34,16 @@ bool check_and_print_null(const char * nameBuff, SQLLEN * ind, FILE *fp) {
 
     return false;
 }
-
+bool check_and_print_null_two_params(SQLLEN * ind, FILE *fp) {
+    if (ind && *ind == SQL_NULL_DATA) {
+            printf("NULL\t");
+            if (fp != NULL)
+                fprintf(fp, "NULL\t");
+            return true;
+        }
+    return false;
+}
+#ifndef _WIN32
 // Check for dsn availability in odbc.ini file
 bool is_dsn_availability(SQLHENV env, const char * dsn) {
     SQLCHAR dsn_buff[1024];
@@ -76,3 +87,4 @@ bool is_driver_availability(SQLHENV env, const char * driver_name) {
 
     return is_driver_available;
 }
+#endif

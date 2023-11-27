@@ -1,22 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sql.h>
-#include <sqlext.h>
-#include <string.h>
-
 #include "utils.h"
-
-bool checkAndPrintNull(SQLLEN * ind, FILE *fp);
-bool checkAndPrintNull(SQLLEN * ind, FILE *fp) {
-    if (ind && *ind == SQL_NULL_DATA) {
-            printf("NULL\t");
-            if (fp != NULL)
-                fprintf(fp, "NULL\t");
-            return true;
-        }
-    return false;
-}
-
 
 #define DTSIZE 35
 int main () {
@@ -41,41 +23,38 @@ int main () {
 
     // Create environment handle
     retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
-    CHECK_ERROR(retcode, "SQLAllocHandle(ENV)", henv, SQL_HANDLE_ENV, fp);
+    check_error(retcode, "SQLAllocHandle(ENV)", henv, SQL_HANDLE_ENV, fp);
 
     // Set ODBC 3 behaviour
     retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION,
                                         (SQLCHAR *)(void*)SQL_OV_ODBC3, -1);
-    CHECK_ERROR(retcode, "SQLSetEnvAttr(SQL_ATTR_ODBC_VERSION)",
+    check_error(retcode, "SQLSetEnvAttr(SQL_ATTR_ODBC_VERSION)",
                 henv, SQL_HANDLE_ENV, fp);
 
     retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
-    CHECK_ERROR(retcode, "SQLAllocHandle(DBC)",
+    check_error(retcode, "SQLAllocHandle(DBC)",
                 hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
-    CHECK_ERROR(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)",
+    check_error(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)",
                 hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLDriverConnect(hdbc, NULL, (SQLCHAR *)("DSN=Couchbase DSN (ANSI);"), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
-    CHECK_ERROR(retcode, " SQLDriverConnect(\"DSN=Couchbase DSN (ANSI);\")", hdbc, SQL_HANDLE_DBC, fp);
+    check_error(retcode, " SQLDriverConnect(\"DSN=Couchbase DSN (ANSI);\")", hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
-    CHECK_ERROR(retcode, "SQLAllocHandle(STMT)",
+    check_error(retcode, "SQLAllocHandle(STMT)",
                 hstmt, SQL_HANDLE_STMT, fp);
     
+    //sample SQLColumns Call
     retcode = SQLColumns(hstmt, "travel-sample", 14, "inventory", 9, "singlecol", 8, "name", 4);
-    CHECK_ERROR(retcode, "SQLColumns",
+    check_error(retcode, "SQLColumns",
                 hstmt, SQL_HANDLE_STMT, fp);
-
-    // retcode = SQLGetTypeInfo(hstmt, SQL_ALL_TYPES);
-    // CHECK_ERROR(retcode, "SQLGetTypeInfo",
-    //             hstmt, SQL_HANDLE_STMT, fp);
 
     /* How many columns are there */
     SQLNumResultCols(hstmt, &columns);
-    printf("totalCols: %u\n", columns);
-    fprintf(fp, "totalCols: %u\n", columns);
+    printf("\ntotalCols: %u\n", columns);
+    fprintf(fp, "\ntotalCols: %u\n", columns);
 
     char colVal_typeName[1024];
     long dataTypeVal;
@@ -86,7 +65,7 @@ int main () {
         char nameBuff[1024];
         SQLSMALLINT nameBuffLenUsed;
         retcode = SQLColAttribute(hstmt, (SQLUSMALLINT)i, SQL_DESC_NAME, nameBuff, (SQLSMALLINT)1024, &nameBuffLenUsed, NULL);
-        CHECK_ERROR(retcode, "SQLColAttribute",
+        check_error(retcode, "SQLColAttribute",
                 hstmt, SQL_HANDLE_STMT, fp);
         printf("%s\t", nameBuff);
         fprintf(fp, "%s\t", nameBuff);
@@ -103,7 +82,7 @@ int main () {
         switch (columnType) {
             case SQL_SMALLINT:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_SSHORT, (SQLPOINTER)(&smallIntColVal), (SQLLEN)0, &smallIntInd);
-                    if (!checkAndPrintNull(&smallIntInd, fp)) {
+                    if (!check_and_print_null_two_params(&smallIntInd, fp)) {
                         printf("%ld\t", smallIntInd);
                         printf("%d\t", smallIntColVal);
                         fprintf(fp, "%d\t", smallIntColVal);
@@ -112,7 +91,7 @@ int main () {
 
             case SQL_INTEGER:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_INTEGER, (SQLPOINTER)(&intColVal), (SQLLEN)0, &intInd);
-                    if (!checkAndPrintNull(&intInd, fp)) {
+                    if (!check_and_print_null_two_params(&intInd, fp)) {
                         printf("%ld\t", intInd);
                         printf("%d\t", intColVal);
                         fprintf(fp, "%d\t", intColVal);
@@ -121,7 +100,7 @@ int main () {
 
             case SQL_BIGINT:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_SBIGINT, (SQLPOINTER)(&bigIntColVal), (SQLLEN)0, &bigintInd);
-                if (!checkAndPrintNull(&bigintInd, fp)) {
+                if (!check_and_print_null_two_params(&bigintInd, fp)) {
                     printf("%ld\t", bigintInd);
                     printf("%ld\t", bigIntColVal);
                     fprintf(fp, "%ld\t", bigIntColVal);
@@ -129,21 +108,17 @@ int main () {
                 break;
             case SQL_VARCHAR:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_CHAR, (SQLPOINTER)stringColVal, (SQLLEN)1024, &stringInd);
-                if (!checkAndPrintNull(&stringInd, fp)) {
+                if (!check_and_print_null_two_params(&stringInd, fp)) {
                     printf("%s\t", stringColVal);
                     fprintf(fp, "%s\t", stringColVal);
 
-                    printf("Utsav Utsav \n\n\n\n");
-
                     printf("columnLen : %p\n\n", columnLen);
                     printf("columnType : %p\n\n", columnType);
-
-                    printf("Utsav Utsav \n\n\n\n");
                 }
                 break;
             case SQL_BIT:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_BIT, (SQLPOINTER)(&boolColVal), (SQLLEN)0, &boolInd);
-                if (!checkAndPrintNull(&boolInd, fp)) {
+                if (!check_and_print_null_two_params(&boolInd, fp)) {
                     char * boolVal = boolColVal == 0 ? "false" : "true";
                     printf("%s\t", boolVal);
                     fprintf(fp, "%s\t", boolVal);

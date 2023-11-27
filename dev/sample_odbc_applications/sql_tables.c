@@ -1,9 +1,3 @@
-#include <windows.h>
-#include <sql.h>
-#include <sqlext.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "utils.h"
 
 #define PERSONID_LEN  2
@@ -12,16 +6,9 @@
 #define ADDRESS_LEN 255
 #define CITY_LEN  255
 
-bool check_and_print_null(const char * nameBuff, SQLLEN * ind) {
-    if (ind && *ind == SQL_NULL_DATA) {
-        printf("%s: NULL\n", nameBuff);
-        return true;
-    }
-
-    return false;
-}
-
 int main(int argc, char * argv[]) {
+    FILE *fp;
+    fp = fopen("query_execution.output", "w"); // open file in write mode
     SQLHENV env;
     SQLHDBC dbc;
     SQLHSTMT stmt;
@@ -31,7 +18,6 @@ int main(int argc, char * argv[]) {
 
 
     SQLLEN cPersonId;
-    // SQLCHAR strFirstName[FIRSTNAME_LEN];
     SQLCHAR strLastName[LASTNAME_LEN];
     SQLCHAR strAddress[ADDRESS_LEN];
     SQLCHAR strCity[CITY_LEN];
@@ -45,22 +31,22 @@ int main(int argc, char * argv[]) {
     /* Allocate a connection handle */
     SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
 
-    SQLDriverConnect(dbc, NULL, (SQLCHAR *)("DSN=local;"), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
+    SQLDriverConnect(dbc, NULL, (SQLCHAR *)("DSN=Couchbase DSN (ANSI);"), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 
     /* Allocate a statement handle */
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
 
-    printf("first sqltables call\n");
-    retcode = SQLTables( stmt, "%",1, NULL, 0, NULL,0, NULL, 0 );
+    printf("First sqltables call: This should go inside 1st if condition\n");
+    retcode = SQLTables( stmt, "%",1, "NULL", 0, "NULL",0, "NULL", 0 );
     /* How many columns are there */
     SQLNumResultCols(stmt, &columns);
-    printf("totalCols: %u\n", columns); //expected 5
+    printf("\ntotalCols: %u\n", columns); //expected 5
 
-    printf("first sqltables call\n");
+    printf("Second sqltables call: This should go inside 4th if condition\n");
     retcode = SQLTables( stmt, "%",1, NULL, 0, NULL,0, "TABLE,VIEW", 10 );
     /* How many columns are there */
     SQLNumResultCols(stmt, &columns);
-    printf("totalCols: %u\n", columns); //expected 5
+    printf("\ntotalCols: %u\n", columns); //expected 5
 
     SQLDOUBLE doubleColVal;
     SQLCHAR stringColVal[1024];
@@ -109,22 +95,22 @@ int main(int argc, char * argv[]) {
 
                     switch (columnType) {
                         case SQL_DOUBLE:
-                            if (!check_and_print_null(nameBuff, &doubleInd)) {
+                            if (!check_and_print_null(nameBuff, &doubleInd,fp)) {
                                 printf("%s: %lf\n", nameBuff, doubleColVal);
                             }
                             break;
                         case SQL_BIGINT:
-                            if (!check_and_print_null(nameBuff, &bigintInd)) {
-                                printf("%s: %ld\n", nameBuff, bigIntColVal);
+                            if (!check_and_print_null(nameBuff, &bigintInd,fp)) {
+                                printf("%s: %ld\n", nameBuff, (long)bigIntColVal);
                             }
                             break;
                         case SQL_VARCHAR:
-                            if (!check_and_print_null(nameBuff, &stringInd)) {
+                            if (!check_and_print_null(nameBuff, &stringInd,fp)) {
                                 printf("%s: %s\n", nameBuff, stringColVal);
                             }
                             break;
                         case SQL_BIT:
-                            if (!check_and_print_null(nameBuff, &boolInd)) {
+                            if (!check_and_print_null(nameBuff, &boolInd,fp)) {
                                 char * boolVal = boolColVal == 0 ? "false" : "true";
                                 printf("%s: %s\n", nameBuff, boolVal);
                             }
@@ -151,25 +137,25 @@ int main(int argc, char * argv[]) {
                 switch (columnType) {
                 case SQL_DOUBLE:
                     SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_DOUBLE, (SQLPOINTER)(&doubleColVal), (SQLLEN)0, &doubleInd);
-                    if (!check_and_print_null(nameBuff, &doubleInd)) {
+                    if (!check_and_print_null(nameBuff, &doubleInd,fp)) {
                         printf("%s: %lf\n", nameBuff, doubleColVal);
                     }
                     break;
                 case SQL_BIGINT:
                     SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_SBIGINT, (SQLPOINTER)(&bigIntColVal), (SQLLEN)0, &bigintInd);
-                    if (!check_and_print_null(nameBuff, &bigintInd)) {
-                        printf("%s: %ld\n", nameBuff, bigIntColVal);
+                    if (!check_and_print_null(nameBuff, &bigintInd,fp)) {
+                        printf("%s: %ld\n", nameBuff, (long)bigIntColVal);
                     }
                     break;
                 case SQL_VARCHAR:
                     SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_CHAR, (SQLPOINTER)stringColVal, (SQLLEN)1024, &stringInd);
-                    if (!check_and_print_null(nameBuff, &stringInd)) {
+                    if (!check_and_print_null(nameBuff, &stringInd,fp)) {
                         printf("%s: %s\n", nameBuff, stringColVal);
                     }
                     break;
                 case SQL_BIT:
                     SQLGetData(stmt, (SQLUSMALLINT)i, SQL_C_BIT, (SQLPOINTER)(&boolColVal), (SQLLEN)0, &boolInd);
-                    if (!check_and_print_null(nameBuff, &boolInd)) {
+                    if (!check_and_print_null(nameBuff, &boolInd,fp)) {
                         char * boolVal = boolColVal == 0 ? "false" : "true";
                         printf("%s: %s\n", nameBuff, boolVal);
                     }
