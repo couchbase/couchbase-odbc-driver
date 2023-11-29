@@ -1051,8 +1051,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
 
         // TODO: review types and set NULL everything than has to be NULL.
 
-        std::stringstream query;
-        query << query_sql_columns;
+        std::stringstream query =  get_query_sql_columns(statement);
         // Completely ommit the condition part of the query, if the value of SQL_ATTR_METADATA_ID is SQL_TRUE
         // (i.e., values for the components are not patterns), and the component hasn't been supplied at all
         // (i.e. is nullptr; note, that actual empty strings are considered "supplied".)

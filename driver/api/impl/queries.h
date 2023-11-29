@@ -4,6 +4,7 @@
 #include "driver/include/statement.h"
 
 std::stringstream build_query_conditionally(Statement&);
+std::stringstream get_query_sql_columns(Statement& statement);
 
 const char query_primary_keys[] = "SELECT TABLE_CAT, "
         "       TABLE_SCHEM, "
@@ -207,61 +208,3 @@ const char query_foreign_keys_fk_where[] = "AND PKTABLE_CAT = fkTable_pk_CAT "
             "                                     NULL FK_NAME, "
             "                                     NULL PK_NAME, "
             "                                     DEFERRABILITY ORDER BY PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, KEY_SEQ) AS subquery ";
-
-
-const char query_sql_columns[] = "SELECT TABLE_CAT"                                   //1
-                ",TABLE_SCHEM"                                                        //2
-                ",TABLE_NAME"                                                         //3
-                ",COLUMN_NAME"                                                        //4
-                ",case when TYPE_NAME = 'int64' then -5 "
-                "     when TYPE_NAME = 'double' then 8 "
-                "     when TYPE_NAME = 'string' then 12 "
-                "     when TYPE_NAME = 'date' then 91 "
-                "     when TYPE_NAME = 'time' then 92 "
-                "     when TYPE_NAME = 'datetime' then 93 "
-                "     else -1 end DATA_TYPE"                                          //5
-                ",TYPE_NAME"                                                          //6
-                ",case when TYPE_NAME = 'string' then 32000 "
-                "      when TYPE_NAME = 'double' then 15 "
-                "      when TYPE_NAME = 'int64' then 19 "
-                "      when TYPE_NAME = 'date' then 10 "
-                "      when TYPE_NAME = 'time' then 8 "
-                "      when TYPE_NAME = 'datetime' then 23 "
-                "      else -1 end COLUMN_SIZE"                                       //7
-                ",case when TYPE_NAME = 'string' then 32000 "
-                "      when TYPE_NAME = 'int64' then 19 "
-                "      else -1 end BUFFER_LENGTH"                                     //8
-                ",0 DECIMAL_DIGITS"                                                   //9
-                ",10 NUM_PREC_RADIX"                                                  //10
-                ",1 NULLABLE"                                                         //11
-                ",'' REMARKS"                                                         //12
-                ",'' COLUMN_DEF"                                                      //13
-                ",case when TYPE_NAME = 'int64' then -5 "
-                "      when TYPE_NAME = 'double' then 8 "
-                "      when TYPE_NAME = 'string' then 12 "
-                "      when TYPE_NAME = 'date' then 9 "
-                "      when TYPE_NAME = 'time' then 9 "
-                "      when TYPE_NAME = 'datetime' then 9 "
-                "      else -1 end SQL_DATA_TYPE"                                     //14
-                ",case when TYPE_NAME = 'date' then 1 "
-                "      when TYPE_NAME = 'time' then 2 "
-                "      when TYPE_NAME = 'datetime' then 3 "
-                "      else 0 end SQL_DATETIME_SUB"                                   //15
-                ",case when TYPE_NAME = 'string' then 32000 "
-                "      else null end CHAR_OCTET_LENGTH"                               //16
-                ",1 ORDINAL_POSITION"                                                 //17
-                ",'YES' IS_NULLABLE"                                                  //18
-                " FROM Metadata.`Dataset` ds"
-                " JOIN Metadata.`Datatype` dt ON ds.DatatypeDataverseName = dt.DataverseName"
-                " AND ds.DatatypeName = dt.DatatypeName"
-                " UNNEST dt.Derived.Record.Fields AS field AT fieldpos LEFT"
-                " JOIN Metadata.`Datatype` dt2 ON field.FieldType = dt2.DatatypeName"
-                " AND ds.DataverseName = dt2.DataverseName"
-                " AND dt2.Derived IS KNOWN"
-                " LET "
-                " TABLE_CAT = ds.DatabaseName,"
-                " TABLE_SCHEM = ds.DataverseName,"
-                " TABLE_NAME = ds.DatasetName,"
-                " TYPE_NAME =field.FieldType,"
-                " COLUMN_NAME = field.FieldName"
-                " WHERE (ARRAY_LENGTH(dt.Derived.Record.Fields) > 0)";
