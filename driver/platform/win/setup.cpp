@@ -41,6 +41,11 @@ struct SetupDialogData {
     bool is_new_dsn;         /// New data source flag
     bool is_default;         /// Default data source flag
     ConnInfo ci;
+
+     // Member function to get LPARAM
+    LPARAM GetAsLPARAM() const {
+        return reinterpret_cast<LPARAM>(const_cast<SetupDialogData*>(this));
+    }
 };
 
 inline BOOL copyAttributes(ConnInfo * ci, LPCTSTR attribute, LPCTSTR value) {
@@ -282,6 +287,55 @@ inline INT_PTR ConfigDlgProc_(
                     EndDialog(hdlg, cmd);
                     return TRUE;
                 }
+                case IDCONTINUE: {
+                    auto &lpsetupdlg = *(SetupDialogData *)GetWindowLongPtr(hdlg, DWLP_USER);
+                    auto &ci = lpsetupdlg.ci;
+
+                    std::basic_string<CharTypeLPCTSTR> value;
+
+                    bool capella_columnar_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_1) == BST_CHECKED;
+                    bool on_prem_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_2) == BST_CHECKED;
+                    int MAKEINTRESOURCE_VALUE;
+
+                    if(capella_columnar_checked && on_prem_checked){
+                        MAKEINTRESOURCE_VALUE = IDD_BOTH_DIALOG;
+                    }
+                    else if(capella_columnar_checked) {
+                        MAKEINTRESOURCE_VALUE = IDD_CAPELLA_COLUMNAR_DIALOG;
+                    }
+                    else if(on_prem_checked){
+                        MAKEINTRESOURCE_VALUE = IDD_ON_PREM_DIALOG;
+                    }
+                    else {
+                        MAKEINTRESOURCE_VALUE = IDD_NONE_DIALOG;
+                    }
+
+                    auto ret = DialogBoxParam(module_instance, MAKEINTRESOURCE(MAKEINTRESOURCE_VALUE), hdlg, ConfigDlgProc, lpsetupdlg.GetAsLPARAM());
+                    if(ret == IDOK){
+                        return setDSNAttributes(hdlg, &lpsetupdlg, NULL);
+                    }
+                    else if (ret != IDCANCEL) {
+                        auto err = GetLastError();
+                        LPVOID lpMsgBuf;
+                        LPVOID lpDisplayBuf;
+
+                        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                            NULL,
+                            err,
+                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                            (LPTSTR)&lpMsgBuf,
+                            0,
+                            NULL);
+
+                        lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (lstrlen((LPCTSTR)lpMsgBuf) + 40) * sizeof(TCHAR));
+                        StringCchPrintf(
+                            (LPTSTR)lpDisplayBuf, LocalSize(lpDisplayBuf) / sizeof(TCHAR), TEXT("failed with error %d: %s"), err, lpMsgBuf);
+                        MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+
+                        LocalFree(lpMsgBuf);
+                        LocalFree(lpDisplayBuf);
+                    }
+                }
             }
             break;
         }
@@ -337,29 +391,8 @@ inline BOOL ConfigDSN_(
         if (hwnd) {
             /* Display dialog(s) */
             auto ret = DialogBoxParam(module_instance, MAKEINTRESOURCE(IDD_DIALOG1), hwnd, ConfigDlgProc, (LPARAM)lpsetupdlg);
-            if (ret == IDOK) {
-                fSuccess = setDSNAttributes(hwnd, lpsetupdlg, NULL);
-            }
-            else if (ret != IDCANCEL) {
-                auto err = GetLastError();
-                LPVOID lpMsgBuf;
-                LPVOID lpDisplayBuf;
-
-                FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL,
-                    err,
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                    (LPTSTR)&lpMsgBuf,
-                    0,
-                    NULL);
-
-                lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (lstrlen((LPCTSTR)lpMsgBuf) + 40) * sizeof(TCHAR));
-                StringCchPrintf(
-                    (LPTSTR)lpDisplayBuf, LocalSize(lpDisplayBuf) / sizeof(TCHAR), TEXT("failed with error %d: %s"), err, lpMsgBuf);
-                MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
-
-                LocalFree(lpMsgBuf);
-                LocalFree(lpDisplayBuf);
+            if(ret == TRUE){
+                fSuccess = TRUE;
             }
         }
         else if (!lpsetupdlg->ci.dsn.empty())

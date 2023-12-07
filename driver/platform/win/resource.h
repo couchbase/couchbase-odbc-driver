@@ -3,6 +3,11 @@
 // Used by resource.rc
 //
 #define IDD_DIALOG1 101
+#define IDD_CAPELLA_COLUMNAR_DIALOG 102
+#define IDD_ON_PREM_DIALOG 103
+#define IDD_NONE_DIALOG 104
+#define IDD_BOTH_DIALOG 105
+
 #define IDC_DSN_NAME 1001
 #define IDC_SERVER_HOST 1002
 #define IDC_SERVER_PORT 1003
@@ -14,6 +19,10 @@
 #define IDC_CERTIFICATEFILE 1008
 #define IDC_SSLMODE 1009
 #define IDC_URL 1010
+#define IDC_CHECKBOX_1 2001
+#define IDC_CHECKBOX_2 2002
+
+#define IDCONTINUE 201
 
 // Next default values for new objects
 //
