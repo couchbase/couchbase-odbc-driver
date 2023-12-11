@@ -116,7 +116,6 @@ void Connection::connect(const std::string & connection_string) {
     bool portIsProvided = port != 0 ? true :false;
 
     std::cout<<"\nLOG: username is :-> "<<username;
-    std::cout<<"\nLOG: password is :-> "<<password;
     std::cout<<"\nLOG: sslmode is :-> "<<sslmode;
     std::cout<<"\nLOG: URL is :-> "<<url;
     std::cout<<"\nLOG: server is :-> "<<server;
@@ -124,32 +123,26 @@ void Connection::connect(const std::string & connection_string) {
     std::cout<<"\nLOG: port is :-> "<<port;
     std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
     std::cout<<"\nLOG: portIsProvides is :-> "<<portIsProvided;
+    std::cout<<"\nLOG: connect_to_capella_columnar is :-> "<<connect_to_capella_columnar;
 
-    /*
-    During the private preview phase, temporarily call buildConnStrWithoutPortInSSLMode without specific conditions.
-    The connection to Capella Columnar is always encrypted, eliminating the need to prompt the user about SSL.
-    After the private preview, set up a Conditional DSN, offering options between on-prem and Capella Columnar.
-    This action should be triggered specifically for connections to  Capella Columnar.
-    */
-    buildConnStrWithoutPortInSSLMode(conn_str);
-
-
-    if (connectInSSLMode){
-        if(portIsProvided){
+    if(connect_to_capella_columnar){
+        //Always in SSL Mode, uses public certificate.
+        build_conn_str_capella_columnar(conn_str);
+    }
+    else if(!connect_to_capella_columnar) {
+        if(connectInSSLMode){
             std::cout<<"\nLOG: Inside connectInSSLMode & portIsProvided is";
-            buildConnStrWithPortInSSLMode(conn_str);
+            build_conn_str_on_prem_ssl(conn_str);
         }
         else {
-            std::cout<<"\nLOG: Inside connectInSSLMode & !portIsProvided is";
-            buildConnStrWithoutPortInSSLMode(conn_str);
+            std::cout<<"\nLOG: Inside !connectInSSLMode & portIsProvided is";
+            build_conn_str_on_prem_without_ssl(conn_str);
         }
     }
     else {
-        if(portIsProvided){
-            std::cout<<"\nLOG: Inside !connectInSSLMode & portIsProvided is";
-            buildConnStrWithPortWithoutSSL(conn_str);
-        }
+        std::cout<<"\nLOG: Neither Capella Columnar nor On-Prem is selected";
     }
+
     lcb_CREATEOPTS * lcb_create_options = NULL;
     lcb_createopts_create(&lcb_create_options, LCB_TYPE_CLUSTER);
     lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
@@ -214,6 +207,13 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = true;
             if (valid_value) {
                 url = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_CONNECT_TO_CAPELLA_COLUMNAR) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                connect_to_capella_columnar = (value == "yes");
             }
         }
         else if (
@@ -615,35 +615,35 @@ std::string Connection::handleNativeSql(const std::string & q) {
     return query;
 }
 
-void Connection::buildConnStrWithPortInSSLMode(char *conn_str) {
+void Connection::build_conn_str_on_prem_ssl(char *conn_str) {
     //couchbases://Host:port?truststorepath=path/to/certificate_file
     if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s",server.c_str(),port,certificate_file.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
-    std::cout<<"\nLOG: Inside buildConnStrWithPortInSSLMode is :-> "<<conn_str;
+    std::cout<<"\nLOG: Inside build_conn_str_on_prem_ssl is :-> "<<conn_str;
 }
 
-void Connection::buildConnStrWithoutPortInSSLMode(char *conn_str){
+void Connection::build_conn_str_capella_columnar(char *conn_str){
     #ifdef _WIN32
     //Connection String?truststorepath=path/to/certificate_file
     std::string GoldfishCertPath = getGoldfishCertPathWindows();
     if(sprintf(conn_str, "%s?truststorepath=%s",url.c_str(),GoldfishCertPath.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
-    std::cout<<"\nLOG: Inside buildConnStrWithoutPortInSSLMode WIN32 is :-> "<<conn_str;
+    std::cout<<"\nLOG: Inside build_conn_str_capella_columnar WIN32 is :-> "<<conn_str;
     #else
     //Connection String
     if(sprintf(conn_str, "%s",url.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
-    std::cout<<"\nLOG: Inside buildConnStrWithoutPortInSSLMode MAC is :-> "<<conn_str;
+    std::cout<<"\nLOG: Inside build_conn_str_capella_columnar MAC is :-> "<<conn_str;
     #endif
 }
 
-void Connection::buildConnStrWithPortWithoutSSL(char *conn_str){
+void Connection::build_conn_str_on_prem_without_ssl(char *conn_str){
      //couchbase://Host:port
     if (sprintf(conn_str, "couchbase://%s:%hu", server.c_str(), port) >= 1024) {
         std::cout << "Insufficient conn_str buffer space\n";
         }
-    std::cout<<"\nLOG: Inside buildConnStrWithPortWithoutSSL :-> "<<conn_str;
+    std::cout<<"\nLOG: Inside build_conn_str_on_prem_without_ssl :-> "<<conn_str;
 }

@@ -59,6 +59,7 @@ public:
     int retry_count = 3;
     int redirect_limit = 10;
     bool database_entity_support = false;
+    bool connect_to_capella_columnar = false;
     lcb_INSTANCE* lcb_instance;
     explicit Connection(Environment & environment);
     // Lookup TypeInfo for given name of type.
@@ -86,9 +87,9 @@ public:
     std::string handleNativeSql(const std::string& q);
 
     //Build Connection String
-    void buildConnStrWithPortInSSLMode(char *);
-    void buildConnStrWithoutPortInSSLMode(char *);
-    void buildConnStrWithPortWithoutSSL(char *);
+    void build_conn_str_on_prem_ssl(char *);
+    void build_conn_str_capella_columnar(char *);
+    void build_conn_str_on_prem_without_ssl(char *);
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

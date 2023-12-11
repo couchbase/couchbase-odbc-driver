@@ -293,6 +293,12 @@ inline INT_PTR ConfigDlgProc_(
 
                     std::basic_string<CharTypeLPCTSTR> value;
 
+#define SET_CHECKBOX_STRING(NAME, ID, TRUE_VALUE, FALSE_VALUE)                    \
+    {                                                                             \
+        const BOOL isChecked  = IsDlgButtonChecked(hdlg, ID) == BST_CHECKED;      \
+        ci.NAME = (isChecked == BST_CHECKED) ? TRUE_VALUE : FALSE_VALUE;          \
+    }
+
                     bool capella_columnar_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_1) == BST_CHECKED;
                     bool on_prem_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_2) == BST_CHECKED;
                     int MAKEINTRESOURCE_VALUE;
@@ -302,13 +308,16 @@ inline INT_PTR ConfigDlgProc_(
                     }
                     else if(capella_columnar_checked) {
                         MAKEINTRESOURCE_VALUE = IDD_CAPELLA_COLUMNAR_DIALOG;
+                        SET_CHECKBOX_STRING(connect_to_capella_columnar, IDC_CHECKBOX_1, "yes", "no");
                     }
                     else if(on_prem_checked){
                         MAKEINTRESOURCE_VALUE = IDD_ON_PREM_DIALOG;
+                        SET_CHECKBOX_STRING(connect_to_capella_columnar, IDC_CHECKBOX_2, "no", "yes");
                     }
                     else {
                         MAKEINTRESOURCE_VALUE = IDD_NONE_DIALOG;
                     }
+#undef SET_CHECKBOX_STRING
 
                     auto ret = DialogBoxParam(module_instance, MAKEINTRESOURCE(MAKEINTRESOURCE_VALUE), hdlg, ConfigDlgProc, lpsetupdlg.GetAsLPARAM());
                     if(ret == IDOK){
