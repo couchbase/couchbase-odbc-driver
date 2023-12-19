@@ -164,6 +164,7 @@ void Connection::connect(const std::string & connection_string) {
 
     Statement statement(*this);
     database_entity_support = checkDatabaseEntitySupport(statement);
+    check_if_two_part_scope_name();
 }
 
 void Connection::resetConfiguration() {
@@ -646,4 +647,15 @@ void Connection::build_conn_str_on_prem_without_ssl(char *conn_str){
         std::cout << "Insufficient conn_str buffer space\n";
         }
     std::cout<<"\nLOG: Inside build_conn_str_on_prem_without_ssl :-> "<<conn_str;
+}
+
+void Connection::check_if_two_part_scope_name(){
+    size_t slashPosition = bucket.find("/");
+    if (slashPosition != std::string::npos) {
+        two_part_scope_name = true;
+
+        // Extract substrings before and after the forward slash
+        scope_part_one = bucket.substr(0, slashPosition);
+        scope_part_two = bucket.substr(slashPosition + 1);
+    }
 }

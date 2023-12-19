@@ -60,6 +60,9 @@ public:
     int redirect_limit = 10;
     bool database_entity_support = false;
     bool connect_to_capella_columnar = false;
+    bool two_part_scope_name = false;
+    std::string scope_part_one;
+    std::string scope_part_two;
     lcb_INSTANCE* lcb_instance;
     explicit Connection(Environment & environment);
     // Lookup TypeInfo for given name of type.
@@ -90,6 +93,7 @@ public:
     void build_conn_str_on_prem_ssl(char *);
     void build_conn_str_capella_columnar(char *);
     void build_conn_str_on_prem_without_ssl(char *);
+    void check_if_two_part_scope_name();
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

@@ -132,15 +132,16 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
             case NAME:           \
                 return fillOutputString<SQLTCHAR>(VALUE, out_value, out_value_max_length, out_value_length, true);
 
-#define CASE_NUM_WITH_CONDITION(NAME, TYPE, VALUE,CONDITION)                                             \
+#define CASE_NUM_WITH_CONDITION(NAME, TYPE, VALUE, CONDITION)                                            \
     SQLRETURN ret;                                                                                       \
     case NAME:                                                                                           \
         if (!name)                                                                                       \
             name = #NAME;                                                                                \
         LOG("GetInfo: CASE_NUM_WITH_CONDITION" << name << ", type: " << #TYPE << ", value: " << #VALUE   \
         << " = " << (VALUE) << ",condition: " << (CONDITION));                                           \
-        if(CONDITION)                                                                                    \
+        if(CONDITION){                                                                                   \
             return fillOutputPOD<TYPE>(VALUE, out_value, out_value_length);                              \
+        }                                                                                                \
         else                                                                                             \
              break;
 
@@ -218,7 +219,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
 
             /// UINTEGER non-empty bitmasks
             CASE_NUM(SQL_CATALOG_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION)
-            CASE_NUM_WITH_CONDITION(SQL_SCHEMA_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION,connection.database_entity_support)
+            CASE_NUM_WITH_CONDITION(SQL_SCHEMA_USAGE, SQLUINTEGER, SQL_CU_DML_STATEMENTS | SQL_CU_TABLE_DEFINITION, (connection.database_entity_support || connection.two_part_scope_name) )
             CASE_NUM(SQL_AGGREGATE_FUNCTIONS,
                 SQLUINTEGER,
                 SQL_AF_ALL | SQL_AF_AVG | SQL_AF_COUNT | SQL_AF_DISTINCT | SQL_AF_MAX | SQL_AF_MIN | SQL_AF_SUM)
@@ -878,7 +879,14 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
                 query << " on ds.DatatypeDataverseName = dt.DataverseName ";
                 query << " and ds.DatatypeName = dt.DatatypeName ";
                 query << " let ";
-                query << " TABLE_CAT = '"<<statement.getParent().bucket<<"'," ;
+                switch(statement.getParent().two_part_scope_name){
+                    case 0:
+                        query << " TABLE_CAT = '"<<statement.getParent().bucket<<"'," ;
+                        break;
+                    case 1:
+                        query << " TABLE_CAT = '"<<statement.getParent().scope_part_one<<"'," ;
+                        break;
+                }
                 query << " TABLE_TYPE = 'VIEW', ";
                 query << " isView = ds.DatasetType = 'VIEW',";
                 query << " hasFields = array_length(dt.Derived.Record.Fields) > 0 ";
@@ -915,6 +923,10 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
             query << " isView = ds.DatasetType = 'VIEW',";
             query << " hasFields = array_length(dt.Derived.Record.Fields) > 0 ";
             query << " where isView and hasFields ";
+            if(statement.getParent().two_part_scope_name){
+                query << " and TABLE_CAT = '"<<statement.getParent().scope_part_one<<"'" ;
+                query << " and TABLE_SCHEM = '"<<statement.getParent().scope_part_two<<"'" ;
+            }
 
             // Completely ommit the condition part of the query, if the value of SQL_ATTR_METADATA_ID is SQL_TRUE
             // (i.e., values for the components are not patterns), and the component hasn't been supplied at all
@@ -1071,7 +1083,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
 
         // Note, that 'schema' variable will be set to "%" above, even if SchemaName == nullptr.
         if (is_pattern) {
-            if (!isMatchAnythingCatalogFnPatternArg(schema))
+            if (!isMatchAnythingCatalogFnPatternArg(schema) && (statement.getParent().database_entity_support || statement.getParent().two_part_scope_name))
                 query << " AND TABLE_SCHEM LIKE '" << escapeForSQL(schema) << "'";
         }
         else if (SchemaName) {

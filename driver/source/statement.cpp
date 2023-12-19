@@ -217,10 +217,6 @@ void Statement::requestNextPackOfResultSets(std::unique_ptr<ResultMutator> && mu
     lcb_cmdanalytics_callback(cmd, queryCallback);
     lcb_cmdanalytics_payload(cmd, payloadStr.c_str(), payloadStr.size());
 
-    std::ostringstream oss;
-    oss << (is_set_stmt_query_timeout ? stmt_query_timeout : connection.query_timeout) * 1000000;
-    //connection.cb_check(lcb_cntl_string(connection.lcb_instance, "analytics_timeout", oss.str().c_str()), "set analytics timeout");
-
     try{
         connection.cb_check(lcb_analytics(connection.lcb_instance, &cbCookie, cmd), "Schedule Analytics Query");
     } catch (std::exception & ex) {

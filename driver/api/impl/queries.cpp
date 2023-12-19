@@ -3,17 +3,26 @@
 std::stringstream build_query_conditionally(Statement& statement){
     std::stringstream query;
     switch (statement.getParent().database_entity_support)
+    {
+        case 0:
+            switch(statement.getParent().two_part_scope_name)
             {
-            case 0:
-                query << " TABLE_CAT = ds.DataverseName, ";
-                query << " TABLE_SCHEM = null, ";
-                break;
-            case 1:
-                query << " TABLE_CAT = ds.DatabaseName,";
-                query << " sch = ds.DataverseName,";
-                query << " TABLE_SCHEM = sch, ";
-                break;
+                case 0:
+                    query << " TABLE_CAT = ds.DataverseName,";
+                    query << " TABLE_SCHEM = NULL,";
+                    break;
+                case 1:
+                    query << " dvname = decode_dataverse_name(ds.DataverseName),";
+                    query << " TABLE_CAT = dvname[0],";
+                    query << " TABLE_SCHEM = dvname[1],";
+                    break;
             }
+            break;
+        case 1:
+            query << " TABLE_CAT = ds.DatabaseName,";
+            query << " TABLE_SCHEM = ds.DataverseName,";
+            break;
+    }
     return query;
 }
 
