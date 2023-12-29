@@ -50,7 +50,7 @@ public:
     std::string server;
     std::uint32_t connection_timeout = 0;
     std::uint32_t timeout = 0;
-    std::string bucket;
+    std::string catalog;
     std::int32_t string_max_length = 0;
     std::string browse_result;
     int browse_connect_step = 0;

@@ -108,7 +108,7 @@ void Connection::connect(const std::string & connection_string) {
     resetConfiguration();
     setConfiguration(cs_fields, dsn_fields);
 
-    LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << bucket);
+    LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << catalog);
     const char * cb_username = username.c_str();
     const char * cb_password = password.c_str();
     char conn_str[1024];
@@ -119,7 +119,7 @@ void Connection::connect(const std::string & connection_string) {
     std::cout<<"\nLOG: sslmode is :-> "<<sslmode;
     std::cout<<"\nLOG: URL is :-> "<<url;
     std::cout<<"\nLOG: server is :-> "<<server;
-    std::cout<<"\nLOG: database is :-> "<<bucket;
+    std::cout<<"\nLOG: database is :-> "<<catalog;
     std::cout<<"\nLOG: port is :-> "<<port;
     std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
     std::cout<<"\nLOG: portIsProvides is :-> "<<portIsProvided;
@@ -184,7 +184,7 @@ void Connection::resetConfiguration() {
     ca_location.clear();
     path.clear();
     default_format.clear();
-    bucket.clear();
+    catalog.clear();
     browse_result.clear();
     browse_connect_step = 0;
     string_max_length = 0;
@@ -328,11 +328,11 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
                 path = value;
             }
         }
-        else if (Poco::UTF8::icompare(key, INI_BUCKET) == 0) {
+        else if (Poco::UTF8::icompare(key, INI_CATALOG) == 0) {
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
-                bucket = value;
+                catalog = value;
             }
         } else if (Poco::UTF8::icompare(key, INI_LOGIN_TIMEOUT) == 0) {
             recognized_key = true;
@@ -468,8 +468,8 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             if (Poco::UTF8::icompare(parameter.first, "default_format") == 0) {
                 default_format = parameter.second;
             }
-            else if (Poco::UTF8::icompare(parameter.first, "bucket") == 0) {
-                bucket = parameter.second;
+            else if (Poco::UTF8::icompare(parameter.first, "catalog") == 0) {
+                catalog = parameter.second;
             }
         }
     }
@@ -503,8 +503,8 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
     if (default_format.empty())
         default_format = "ODBCDriver2";
 
-    if (bucket.empty())
-        bucket = "default";
+    if (catalog.empty())
+        catalog = "default";
 
     if (string_max_length == 0)
         string_max_length = TypeInfo::string_max_size;
@@ -650,12 +650,12 @@ void Connection::build_conn_str_on_prem_without_ssl(char *conn_str){
 }
 
 void Connection::check_if_two_part_scope_name(){
-    size_t slashPosition = bucket.find("/");
+    size_t slashPosition = catalog.find("/");
     if (slashPosition != std::string::npos) {
         two_part_scope_name = true;
 
         // Extract substrings before and after the forward slash
-        scope_part_one = bucket.substr(0, slashPosition);
-        scope_part_two = bucket.substr(slashPosition + 1);
+        scope_part_one = catalog.substr(0, slashPosition);
+        scope_part_two = catalog.substr(slashPosition + 1);
     }
 }

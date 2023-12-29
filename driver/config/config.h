@@ -29,7 +29,7 @@ struct ConnInfo {
     std::string private_key_file;
     std::string certificate_file;
     std::string caLocation;
-    std::string bucket;
+    std::string catalog;
     std::string sid;
     std::string huge_int_as_string;
     std::string stringmaxlength;

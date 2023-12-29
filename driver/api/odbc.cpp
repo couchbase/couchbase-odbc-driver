@@ -155,7 +155,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLGetInfo)(
             CASE_STRING(SQL_DATA_SOURCE_NAME, connection.dsn)
             CASE_STRING(SQL_CATALOG_TERM, "catalog")
             CASE_STRING(SQL_COLLATION_SEQ, "UTF-8")
-            CASE_STRING(SQL_DATABASE_NAME, connection.bucket)
+            CASE_STRING(SQL_DATABASE_NAME, connection.catalog)
             CASE_STRING(SQL_KEYWORDS, "")
             CASE_STRING(SQL_PROCEDURE_TERM, "stored procedure")
             CASE_STRING(SQL_CATALOG_NAME_SEPARATOR, ".")
@@ -862,7 +862,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
     auto func = [&](Statement & statement) {
         constexpr bool null_catalog_defaults_to_connected_database = true;
         const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) :
-            (null_catalog_defaults_to_connected_database ? statement.getParent().bucket : SQL_ALL_CATALOGS));
+            (null_catalog_defaults_to_connected_database ? statement.getParent().catalog : SQL_ALL_CATALOGS));
         const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto table = (TableName ? toUTF8(TableName, NameLength3) : "%");
         const auto table_type_list = (TableType ? toUTF8(TableType, NameLength4) : SQL_ALL_TABLE_TYPES);
@@ -881,7 +881,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
                 query << " let ";
                 switch(statement.getParent().two_part_scope_name){
                     case 0:
-                        query << " TABLE_CAT = '"<<statement.getParent().bucket<<"'," ;
+                        query << " TABLE_CAT = '"<<statement.getParent().catalog<<"'," ;
                         break;
                     case 1:
                         query << " TABLE_CAT = '"<<statement.getParent().scope_part_one<<"'," ;
@@ -936,7 +936,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
             const auto is_pattern = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_TRUE);
             const auto table_types = parseCatalogFnVLArgs(table_type_list);
 
-           // Note, that 'catalog' variable will be set to "%" above (or to the connected bucket name), even if CatalogName == nullptr.
+           // Note, that 'catalog' variable will be set to "%" above (or to the connected catalog name), even if CatalogName == nullptr.
             if (is_pattern && !is_odbc_v2) {
                 if (!isMatchAnythingCatalogFnPatternArg(catalog)){
                     query << " AND TABLE_CAT LIKE '" << escapeForSQL(catalog) << "'";
@@ -1053,7 +1053,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
     auto func = [&](Statement & statement) {
         constexpr bool null_catalog_defaults_to_connected_database = true; // TODO: review and remove this behavior?
         const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) :
-            (null_catalog_defaults_to_connected_database ? statement.getParent().bucket : SQL_ALL_CATALOGS));
+            (null_catalog_defaults_to_connected_database ? statement.getParent().catalog : SQL_ALL_CATALOGS));
         const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto table = (TableName ? toUTF8(TableName, NameLength3) : "%");
         const auto column = (ColumnName ? toUTF8(ColumnName, NameLength4) : "%");
@@ -1072,7 +1072,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLColumns)(
 
         // TODO: Use of coalesce() is a workaround here. Review.
 
-        // Note, that 'catalog' variable will be set to "%" above (or to the connected bucket name), even if CatalogName == nullptr.
+        // Note, that 'catalog' variable will be set to "%" above (or to the connected catalog name), even if CatalogName == nullptr.
         if (is_pattern) {
             if (!isMatchAnythingCatalogFnPatternArg(catalog))
                 query << " AND TABLE_CAT LIKE '" << escapeForSQL(catalog) << "'";
@@ -1185,7 +1185,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLBrowseConnect)(
             case 1:
                 connection.browse_result += ";";
                 connection.browse_result += toUTF8(InConnectionString, StringLength1);
-                outputString += "*BUCKET:Bucket={" + connection.bucket + "};*LANGUAGE:Language={us_english,Franais};";
+                outputString += "*CATALOG:Catalog={" + connection.catalog + "};*LANGUAGE:Language={us_english,Franais};";
                 connection.browse_connect_step += 1;
                 fillOutputString<SQLTCHAR>(outputString, OutConnectionString, BufferLength, StringLength2Ptr, false);
                 return SQL_NEED_DATA;
@@ -1411,11 +1411,11 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(
 ) {
     LOG(__FUNCTION__);
     auto func = [&](Statement & statement) {
-        const auto pkCatalog = (PKCatalogName ? toUTF8(PKCatalogName, NameLength1) : statement.getParent().bucket);
+        const auto pkCatalog = (PKCatalogName ? toUTF8(PKCatalogName, NameLength1) : statement.getParent().catalog);
         const auto pkSchema = (PKSchemaName ? toUTF8(PKSchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto pkTable = (PKTableName ? toUTF8(PKTableName, NameLength3) : "%");
 
-        const auto fkCatalog = (FKCatalogName ? toUTF8(FKCatalogName, NameLength4) : statement.getParent().bucket);
+        const auto fkCatalog = (FKCatalogName ? toUTF8(FKCatalogName, NameLength4) : statement.getParent().catalog);
         const auto fkSchema = (FKSchemaName ? toUTF8(FKSchemaName, NameLength5) : SQL_ALL_SCHEMAS);
         const auto fkTable = (FKTableName ? toUTF8(FKTableName, NameLength6) : "%");
 
@@ -1532,7 +1532,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLPrimaryKeys)(
 ) {
     LOG(__FUNCTION__);
     auto func = [&](Statement & statement) {
-        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().bucket);
+        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().catalog);
         const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto table = (TableName ? toUTF8(TableName, NameLength3) : "%");
         std::stringstream query;
@@ -1596,7 +1596,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedureColumns)(
 ) {
     LOG(__FUNCTION__);
     auto func = [&](Statement & statement) {
-        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().bucket);
+        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().catalog);
         const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto proc = (ProcName ? toUTF8(ProcName, NameLength3) : "%");
         const auto column = (ColumnName ? toUTF8(ColumnName, NameLength4) : "%");
@@ -1688,7 +1688,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedures)(
 ) {
     LOG(__FUNCTION__);
     auto func = [&](Statement & statement) {
-        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().bucket);
+        const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().catalog);
         const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto proc = (ProcName ? toUTF8(ProcName, NameLength3) : "%");
 
