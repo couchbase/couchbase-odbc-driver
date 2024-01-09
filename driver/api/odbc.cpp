@@ -1535,9 +1535,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLPrimaryKeys)(
         const auto catalog = (CatalogName ? toUTF8(CatalogName, NameLength1) : statement.getParent().catalog);
         const auto schema = (SchemaName ? toUTF8(SchemaName, NameLength2) : SQL_ALL_SCHEMAS);
         const auto table = (TableName ? toUTF8(TableName, NameLength3) : "%");
-        std::stringstream query;
-        query << query_primary_keys;
-
+        std::stringstream query =  get_query_primary_keys(statement);
         const auto case_insensitive = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_TRUE);
 
         if (case_insensitive) {
@@ -1549,12 +1547,14 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLPrimaryKeys)(
         }
 
         // Note, that 'schema' variable will be set to "%" above, even if SchemaName == nullptr.
-        if (case_insensitive) {
+        if((statement.getParent().database_entity_support || statement.getParent().two_part_scope_name)){
+            if (case_insensitive) {
             if (!isMatchAnythingCatalogFnPatternArg(schema))
                 query << " AND (TABLE_SCHEM is Not Null) AND coalesce(TABLE_SCHEM, '') = '" << escapeForSQL(schema) << "'";
         }
         else if (SchemaName) {
             query << " AND (TABLE_SCHEM is Not Null) AND coalesce(lower(TABLE_SCHEM), '') = lower('" << escapeForSQL(schema) << "')";
+        }
         }
 
         // Note, that 'table' variable will be set to "%" above, even if TableName == nullptr.

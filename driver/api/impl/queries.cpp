@@ -28,7 +28,7 @@ std::stringstream build_query_conditionally(Statement& statement){
 
 std::stringstream get_query_sql_columns(Statement& statement){
     std::stringstream query_sql_columns;
-    query_sql_columns << "SELECT TABLE_CAT"                                                   //1
+    query_sql_columns<< "SELECT TABLE_CAT"                                                    //1
                         ",TABLE_SCHEM"                                                        //2
                         ",TABLE_NAME"                                                         //3
                         ",COLUMN_NAME"                                                        //4
@@ -72,18 +72,47 @@ std::stringstream get_query_sql_columns(Statement& statement){
                         ",'YES' IS_NULLABLE"                                                  //18
                         " FROM Metadata.`Dataset` ds"
                         " JOIN Metadata.`Datatype` dt ON ds.DatatypeDataverseName = dt.DataverseName"
-                        " AND ds.DatatypeName = dt.DatatypeName"
-                        " UNNEST dt.Derived.Record.Fields AS field AT fieldpos LEFT"
+                        " AND ds.DatatypeName = dt.DatatypeName";
+    if(statement.getParent().database_entity_support){
+        query_sql_columns << " AND ds.DatatypeDatabaseName = dt.DatabaseName ";
+    }
+    query_sql_columns <<" UNNEST dt.Derived.Record.Fields AS field AT fieldpos LEFT"
                         " JOIN Metadata.`Datatype` dt2 ON field.FieldType = dt2.DatatypeName"
                         " AND ds.DataverseName = dt2.DataverseName"
-                        " AND dt2.Derived IS KNOWN"
-                        " LET ";
-                        query_sql_columns << build_query_conditionally(statement).str();
-                        query_sql_columns << " TABLE_NAME = ds.DatasetName, ";
-                        query_sql_columns << " TYPE_NAME =field.FieldType, ";
-                        query_sql_columns << " isView = ds.DatasetType = 'VIEW',";
-                        query_sql_columns << " COLUMN_NAME = field.FieldName ";
-                        query_sql_columns << " WHERE (ARRAY_LENGTH(dt.Derived.Record.Fields) > 0) ";
+                        " AND dt2.Derived IS KNOWN";
+    if(statement.getParent().database_entity_support){
+        query_sql_columns << " AND ds.DatabaseName = dt2.DatabaseName ";
+    }
+    query_sql_columns <<" LET ";
+    query_sql_columns << build_query_conditionally(statement).str();
+    query_sql_columns << " TABLE_NAME = ds.DatasetName, ";
+    query_sql_columns << " TYPE_NAME =field.FieldType, ";
+    query_sql_columns << " isView = ds.DatasetType = 'VIEW',";
+    query_sql_columns << " COLUMN_NAME = field.FieldName ";
+    query_sql_columns << " WHERE (ARRAY_LENGTH(dt.Derived.Record.Fields) > 0) ";
 
     return query_sql_columns;
+}
+
+std::stringstream get_query_primary_keys(Statement& statement){
+    std::stringstream query_primary_keys;
+    query_primary_keys << "SELECT TABLE_CAT,"
+                          "TABLE_SCHEM, "
+                          "TABLE_NAME, "
+                          "primaryKey[0] AS COLUMN_NAME, "
+                          "KEY_SEQ, "
+                          "NULL PK_NAME "
+                          "FROM Metadata.`Dataset` ds "
+                          "JOIN Metadata.`Datatype` dt ON ds.DatatypeDataverseName = dt.DataverseName "
+                          "AND ds.DatatypeName = dt.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_primary_keys << " AND ds.DatatypeDatabaseName = dt.DatabaseName ";
+    }
+    query_primary_keys  << " UNNEST ds.ViewDetails.PrimaryKey as primaryKey at p "
+                          "LET ";
+    query_primary_keys << build_query_conditionally(statement).str();
+    query_primary_keys << "TABLE_NAME = ds.DatasetName, ";
+    query_primary_keys << "KEY_SEQ = p ";
+    query_primary_keys << "WHERE ";
+    return query_primary_keys;
 }

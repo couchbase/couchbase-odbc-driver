@@ -1,24 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sql.h>
-#include <sqlext.h>
-#include <string.h>
-
 #include "utils.h"
 
 #define TAB_LEN SQL_MAX_TABLE_NAME_LEN + 1
 #define COL_LEN SQL_MAX_COLUMN_NAME_LEN + 1
-
-bool checkAndPrintNull(SQLLEN * ind, FILE *fp);
-bool checkAndPrintNull(SQLLEN * ind, FILE *fp) {
-    if (ind && *ind == SQL_NULL_DATA) {
-            printf("NULL\t");
-            if (fp != NULL)
-                fprintf(fp, "NULL\t");
-            return true;
-        }
-    return false;
-}
 
 int main () {
     FILE *fp;
@@ -29,86 +12,157 @@ int main () {
     SQLHSTMT hstmt = SQL_NULL_HSTMT;  // Statement handle
 
     SQLRETURN retcode;
-    //
-    // Four tables used in this example TestTBL5,TestTBL6,TestTBL7 and TestTBL8
-    // Table 5 has a primary key and a foreign key linked to the primary key of
-    // table 8. Table 6 has primary key and foreign key linked to the primary
-    // key of table 5. Table 7 has primary key and foreign key linked to the
-    // primary key of table 5. Table 8 has primary key
-    //
-    char   strTable[] = "good_customers5";
-    char   strTable1[] = "good_customers6";
-
-
-
-    UCHAR strPkTable[TAB_LEN];       // Primary key table name
-    UCHAR strFkTable[TAB_LEN];       // Foreign key table name
-    UCHAR strFkTabCat[TAB_LEN];      // Foreign Key table catalog
-                                     // Column 5 in SQLForeignKey call is char
-    UCHAR strPkCol[COL_LEN];         // Primary key column
-    UCHAR strFkCol[COL_LEN];         // Foreign key column
-
-    SQLLEN lenPkTable, lenPkCol, lenFkTabCat, lenFkTable, lenFkCol, lenKeySeq;
-
     SQLSMALLINT columns;
-
     SQLCHAR stringColVal[1024];
     SQLBIGINT bigIntColVal;
     SQLSMALLINT smallIntColVal;
     SQLINTEGER intColVal;
-
     SQLSCHAR boolColVal;
     SQLLEN stringInd, bigintInd, boolInd, smallIntInd, intInd;
+    SQLCHAR outstr[1024];
+    SQLSMALLINT outstrlen;
 
    // Column key sequence (Note: Column 5 in SQLPrimaryKey call is small int) */
 
     SQLSMALLINT   iKeySeq;
     retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
-    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_ENV)", henv, SQL_HANDLE_ENV, fp);
+    check_error(retcode, "SQLAllocHandle(SQL_HANDLE_ENV)", henv, SQL_HANDLE_ENV, fp);
 
     retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION,
                                             (SQLCHAR *)(void*)SQL_OV_ODBC3, -1);
-    CHECK_ERROR(retcode, "SQLSetEnvAttr(SQL_ATTR_ODBC_VERSION)",
+    check_error(retcode, "SQLSetEnvAttr(SQL_ATTR_ODBC_VERSION)",
                 henv, SQL_HANDLE_ENV, fp);
 
     retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
-    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_DBC)", hdbc, SQL_HANDLE_DBC, fp);
+    check_error(retcode, "SQLAllocHandle(SQL_HANDLE_DBC)", hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
-    CHECK_ERROR(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)",
+    check_error(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)",
                 hdbc, SQL_HANDLE_DBC, fp);
 
-    // retcode = SQLConnect(hdbc, (SQLCHAR*) "DATASOURCE",
-    //                      SQL_NTS, (SQLCHAR*) NULL, 0, NULL, 0);
-    // CHECK_ERROR(retcode, "SQLConnect(DATASOURCE)", hdbc, SQL_HANDLE_DBC, fp);
-
-    retcode = SQLConnect(hdbc, (SQLCHAR*) "Couchbase DSN (ANSI)", SQL_NTS, (SQLCHAR*) "admin", 5, (SQLCHAR*) "000000", 6);
-    CHECK_ERROR(retcode, " SQLConnect", hdbc, SQL_HANDLE_DBC, fp);
+    retcode = SQLDriverConnect(hdbc, NULL, "DSN=Couchbase DSN (ANSI);", SQL_NTS,
+                         outstr, sizeof(outstr), &outstrlen,
+                         SQL_DRIVER_COMPLETE);
+    check_error(retcode, " SQLDriverConnect", hdbc, SQL_HANDLE_DBC, fp);
 
     retcode = SQLAllocHandle( SQL_HANDLE_STMT, hdbc, &hstmt);
-    CHECK_ERROR(retcode, "SQLAllocHandle(SQL_HANDLE_STMT)",
+    check_error(retcode, "SQLAllocHandle(SQL_HANDLE_STMT)",
                 hstmt, SQL_HANDLE_STMT, fp);
 
-    //
-    // Get primary keys in the TestTBL5 table
-    //
-    retcode = SQLPrimaryKeys(hstmt,
-                             "travel-sample", 13,             // Catalog name
-                             "inventory", 9,             // Schema name
-                             strTable, SQL_NTS);   // Table name
+    /*Get Primary Key : Capella Columnar
+    CREATE COLLECTION new_collection PRIMARY KEY (id:int, name:string,email:string)
+    SELECT * FROM new_collection
+    [
+        {
+            "new_collection": {
+            "id": 2,
+            "name": "peeyush",
+            "email": "peeyush@gmail.com"
+            }
+        },
+        {
+            "new_collection": {
+            "id": 1,
+            "name": "janhavi",
+            "email": "janhavi@gmail.com"
+            }
+        },
+        {
+            "new_collection": {
+            "id": 3,
+            "name": "utsav",
+            "email": "utsav@gmail.com"
+            }
+        }
+        ]
 
-    printf ("\nGet primary key of the %s table\n", strTable);
-    fprintf (fp, "\nGet primary key of the %s table\n", strTable);
-    CHECK_ERROR(retcode, "SQLPrimaryKeys", hstmt, SQL_HANDLE_STMT, fp);
+    1. create `tav_new` with primary key = id in `Default`.`Default`
+        CREATE ANALYTICS VIEW tav_new(
+            id int,
+            name string,
+            email string) default NULL PRIMARY KEY (id) NOT ENFORCED AS
+        SELECT id,name,email
+        FROM new_collection;
+
+    2. create `tav_new` with primary key = name in `Default`.`new`
+        CREATE ANALYTICS VIEW Default.new.tav_new(
+            id int,
+            name string,
+            email string) default NULL PRIMARY KEY (name) NOT ENFORCED AS
+        SELECT id, name,email
+        FROM Default.Default.new_collection;
+
+    2. create `tav_new` with primary key = name in `Default`.`new`
+        CREATE database new_database
+        CREATE SCOPE new_database.new
+        CREATE ANALYTICS VIEW `new_database`.`new`.`tav_new`(
+            id int,
+            name string,
+            email string) default NULL PRIMARY KEY (email) NOT ENFORCED AS
+        SELECT id,name,email
+        FROM Default.Default.new_collection;
+    */
+    // retcode = SQLPrimaryKeys(hstmt,
+    //                          "Default",7 ,                   // Catalog name
+    //                          "Default", 7,                   // Schema name
+    //                          "tav_new", SQL_NTS);            // Table name
+    //Expected output:  COLUMN_NAME	-> id
+
+    retcode = SQLPrimaryKeys(hstmt,
+                             "Default",7 ,                    // Catalog name
+                             "new", 3,                        // Schema name
+                             "tav_new", SQL_NTS);             // Table name
+    //Expected output:  COLUMN_NAME	-> name
+
+    // retcode = SQLPrimaryKeys(hstmt,
+    //                          "new_database", 12,              // Catalog name
+    //                          "new", 3,                        // Schema name
+    //                          "tav_new", SQL_NTS);             // Table name
+    //Expected output:  COLUMN_NAME	-> email
+
+    /*Get Primary Key : Couchbase Analytics
+    two part scope, example: travel-sample.inventory
+    Expected output:  COLUMN_NAME	-> route_id
+    */
+    // retcode = SQLPrimaryKeys(hstmt,
+    //                          "travel-sample", 13,             // Catalog name
+    //                          "inventory", 9,                  // Schema name
+    //                          "route_view", SQL_NTS);          // Table name
+
+    /*Get Primary Key : Couchbase Analytics
+    one part scope, example: one
+        CREATE ANALYTICS SCOPE one;
+        Create col collection -> route collection from travel-sample bucket
+        create col_view with route_id as Primary key->
+        CREATE ANALYTICS VIEW col_view (
+        route_id BIGINT NOT UNKNOWN,
+        airline_iata_code STRING NOT UNKNOWN,
+        source_airport_iata_code STRING NOT UNKNOWN,
+        dest_airport_iata_code STRING NOT UNKNOWN,
+        route_stops BIGINT,
+        route_equipment STRING,
+        route_distance DOUBLE) default NULL
+        primary key (route_id) NOT ENFORCED
+        AS SELECT id AS route_id,
+        airline AS airline_iata_code,
+        sourceairport AS source_airport_iata_code,
+        destinationairport AS dest_airport_iata_code,
+        stops AS route_stops,
+        equipment AS route_equipment,
+        distance AS route_distance
+        FROM `travel-sample`.inventory.route
+    */
+    // retcode = SQLPrimaryKeys(hstmt,
+    //                          "one", 3,               // Catalog name
+    //                          "", 0,                  // Schema name
+    //                          "col_view", SQL_NTS);   // Table name
+
+    check_error(retcode, "SQLPrimaryKeys", hstmt, SQL_HANDLE_STMT, fp);
 
     SQLNumResultCols(hstmt, &columns);
 
     printf ("Number of Result Columns %i\n", columns);
     fprintf (fp, "Number of Result Columns %i\n", columns);
-
-
-
-
 
     for(int i = 1; i <= columns; i++) {
         char nameBuff[1024];
@@ -127,7 +181,7 @@ int main () {
         switch (columnType) {
             case SQL_SMALLINT:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_SSHORT, (SQLPOINTER)(&smallIntColVal), (SQLLEN)0, &smallIntInd);
-                    if (!checkAndPrintNull(&smallIntInd, fp)) {
+                    if (!check_and_print_null_two_params(&smallIntInd, fp)) {
                         printf("%ld\t", smallIntInd);
                         printf("%d\t", smallIntColVal);
                         fprintf(fp, "%d\t", smallIntColVal);
@@ -136,7 +190,7 @@ int main () {
 
             case SQL_INTEGER:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_INTEGER, (SQLPOINTER)(&intColVal), (SQLLEN)0, &intInd);
-                    if (!checkAndPrintNull(&intInd, fp)) {
+                    if (!check_and_print_null_two_params(&intInd, fp)) {
                         printf("%ld\t", intInd);
                         printf("%d\t", intColVal);
                         fprintf(fp, "%d\t", intColVal);
@@ -145,7 +199,7 @@ int main () {
 
             case SQL_BIGINT:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_SBIGINT, (SQLPOINTER)(&bigIntColVal), (SQLLEN)0, &bigintInd);
-                if (!checkAndPrintNull(&bigintInd, fp)) {
+                if (!check_and_print_null_two_params(&bigintInd, fp)) {
                     printf("%ld\t", bigintInd);
                     printf("%ld\t", bigIntColVal);
                     fprintf(fp, "%ld\t", bigIntColVal);
@@ -153,14 +207,14 @@ int main () {
                 break;
             case SQL_VARCHAR:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_CHAR, (SQLPOINTER)stringColVal, (SQLLEN)1024, &stringInd);
-                if (!checkAndPrintNull(&stringInd, fp)) {
+                if (!check_and_print_null_two_params(&stringInd, fp)) {
                     printf("%s\t", stringColVal);
                     fprintf(fp, "%s\t", stringColVal);
                 }
                 break;
             case SQL_BIT:
                 SQLGetData(hstmt, (SQLUSMALLINT)i, SQL_C_BIT, (SQLPOINTER)(&boolColVal), (SQLLEN)0, &boolInd);
-                if (!checkAndPrintNull(&boolInd, fp)) {
+                if (!check_and_print_null_two_params(&boolInd, fp)) {
                     char * boolVal = boolColVal == 0 ? "false" : "true";
                     printf("%s\t", boolVal);
                     fprintf(fp, "%s\t", boolVal);

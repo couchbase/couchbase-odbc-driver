@@ -5,23 +5,7 @@
 
 std::stringstream build_query_conditionally(Statement&);
 std::stringstream get_query_sql_columns(Statement& statement);
-
-const char query_primary_keys[] = "SELECT TABLE_CAT, "
-        "       TABLE_SCHEM, "
-        "       TABLE_NAME, "
-        "       primaryKey[0] AS COLUMN_NAME, "
-        "       KEY_SEQ, "
-        "       NULL PK_NAME "
-        "FROM Metadata.`Dataset` ds "
-        "  JOIN Metadata.`Datatype` dt ON ds.DatatypeDataverseName = dt.DataverseName "
-        "  AND ds.DatatypeName = dt.DatatypeName "
-        "UNNEST ds.ViewDetails.PrimaryKey as primaryKey at p "
-        "LET dvname = decode_dataverse_name(ds.DataverseName), "
-        "    TABLE_CAT = dvname[0], "
-        "    TABLE_SCHEM = CASE ARRAY_LENGTH(dvname) WHEN 1 THEN NULL ELSE dvname[1] END, "
-        "    TABLE_NAME = ds.DatasetName, "
-        "    KEY_SEQ = p "
-        "WHERE ";
+std::stringstream get_query_primary_keys(Statement& statement);
 
 const char query_procedure_columns[] = "SELECT "
         "    PROCEDURE_CAT, "
