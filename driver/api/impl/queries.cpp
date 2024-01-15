@@ -1,26 +1,24 @@
 #include "driver/api/impl/queries.h"
 
-std::stringstream build_query_conditionally(Statement& statement){
+std::stringstream build_query_conditionally(Statement& statement, const std::string& tableCat, const std::string& tableSchem, const std::string& ds, const std::string& DataverseName, const std::string& DatabaseName) {
     std::stringstream query;
-    switch (statement.getParent().database_entity_support)
-    {
+    switch (statement.getParent().database_entity_support) {
         case 0:
-            switch(statement.getParent().two_part_scope_name)
-            {
+            switch (statement.getParent().two_part_scope_name) {
                 case 0:
-                    query << " TABLE_CAT = ds.DataverseName,";
-                    query << " TABLE_SCHEM = NULL,";
+                    query << " " << tableCat << " = " << ds << "." << DataverseName << ",";
+                    query << " " << tableSchem << " = NULL,";
                     break;
                 case 1:
-                    query << " dvname = decode_dataverse_name(ds.DataverseName),";
-                    query << " TABLE_CAT = dvname[0],";
-                    query << " TABLE_SCHEM = dvname[1],";
+                    query << " dvname = decode_dataverse_name(" << ds << "." << DataverseName << "),";
+                    query << " " << tableCat << " = dvname[0],";
+                    query << " " << tableSchem << " = dvname[1],";
                     break;
             }
             break;
         case 1:
-            query << " TABLE_CAT = ds.DatabaseName,";
-            query << " TABLE_SCHEM = ds.DataverseName,";
+            query << " " << tableCat << " = " << ds << "." << DatabaseName << ",";
+            query << " " << tableSchem << " = " << ds << "." << DataverseName << ",";
             break;
     }
     return query;
@@ -84,7 +82,7 @@ std::stringstream get_query_sql_columns(Statement& statement){
         query_sql_columns << " AND ds.DatabaseName = dt2.DatabaseName ";
     }
     query_sql_columns <<" LET ";
-    query_sql_columns << build_query_conditionally(statement).str();
+    query_sql_columns << build_query_conditionally(statement, "TABLE_CAT", "TABLE_SCHEM", "ds", "DataverseName", "DatabaseName").str();
     query_sql_columns << " TABLE_NAME = ds.DatasetName, ";
     query_sql_columns << " TYPE_NAME =field.FieldType, ";
     query_sql_columns << " isView = ds.DatasetType = 'VIEW',";
@@ -110,9 +108,166 @@ std::stringstream get_query_primary_keys(Statement& statement){
     }
     query_primary_keys  << " UNNEST ds.ViewDetails.PrimaryKey as primaryKey at p "
                           "LET ";
-    query_primary_keys << build_query_conditionally(statement).str();
+    query_primary_keys << build_query_conditionally(statement, "TABLE_CAT", "TABLE_SCHEM", "ds", "DataverseName", "DatabaseName").str();;
     query_primary_keys << "TABLE_NAME = ds.DatasetName, ";
     query_primary_keys << "KEY_SEQ = p ";
     query_primary_keys << "WHERE ";
     return query_primary_keys;
+}
+
+
+std::stringstream get_query_procedure_columns(Statement& statement){
+    std::cout<<"\nLOG: inside get_query_procedure_columns";
+    std::stringstream query_procedure_columns;
+    query_procedure_columns << "SELECT "
+        "    PROCEDURE_CAT, "
+        "    PROCEDURE_SCHEM, "
+        "    PROCEDURE_NAME, "
+        "    COLUMN_NAME, "
+        "    COLUMN_TYPE, "
+        "    DATA_TYPE, "
+        "    TYPE_NAME, "
+        "    NULL COLUMN_SIZE, "
+        "    NULL BUFFER_LENGTH, "
+        "    NULL DECIMAL_DIGITS, "
+        "    NULL NUM_PREC_RADIX, "
+        "    NULLABLE, "
+        "    REMARKS, "
+        "    NULL COLUMN_DEF, "
+        "    SQL_DATA_TYPE, "
+        "    NULL SQL_DATETIME_SUB, "
+        "    NULL CHAR_OCTET_LENGTH, "
+        "    ORDINAL_POSITION, "
+        "    IS_NULLABLE "
+        "FROM Metadata.`Function` AS fn "
+        "UNNEST fn.Params as COLUMN_NAME at pos "
+        "LET ";
+    query_procedure_columns << build_query_conditionally(statement, "PROCEDURE_CAT", "PROCEDURE_SCHEM", "fn", "DataverseName", "DatabaseName").str();
+    query_procedure_columns << "    PROCEDURE_NAME = fn.Name, "
+        "    COLUMN_TYPE = ";
+    return query_procedure_columns;
+}
+
+
+std::stringstream get_query_procedures(Statement& statement){
+    std::cout<<"\nLOG: inside get_query_procedures";
+    std::stringstream query_procedures;
+    query_procedures << "SELECT PROCEDURE_CAT, "
+        "       PROCEDURE_SCHEM, "
+        "       PROCEDURE_NAME, "
+        "       NULL NUM_INPUT_PARAMS, "
+        "       NULL NUM_OUTPUT_PARAMS, "
+        "       NULL NUM_RESULT_SETS, "
+        "       REMARKS, "
+        "       PROCEDURE_TYPE "
+        "FROM Metadata.`Function` AS fn "
+        "LET ";
+    query_procedures << build_query_conditionally(statement, "PROCEDURE_CAT", "PROCEDURE_SCHEM", "fn", "DataverseName", "DatabaseName").str();
+    query_procedures << "    PROCEDURE_NAME = fn.Name, "
+        "    REMARKS = 'Default Remarks', "
+        "    PROCEDURE_TYPE = 2 "
+        "WHERE" ;
+    return query_procedures;
+}
+
+
+std::stringstream get_query_foreign_keys_fk_with_pk(Statement& statement){
+    std::cout<<"\nLOG: inside get_query_foreign_keys_fk_with_pk";
+    std::stringstream query_foreign_keys_fk_with_pk;
+    query_foreign_keys_fk_with_pk << "SELECT subquery.* "
+            "FROM Metadata.`Dataset` ds1 "
+            "  JOIN Metadata.`Datatype` dt1 ON ds1.DatatypeDataverseName = dt1.DataverseName "
+            "  AND ds1.DatatypeName = dt1.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_foreign_keys_fk_with_pk << " AND ds1.DatatypeDatabaseName = dt1.DatabaseName ";
+    }
+    query_foreign_keys_fk_with_pk << "UNNEST ds1.ViewDetails.ForeignKeys AS ForeignKeys "
+            "UNNEST ForeignKeys.ForeignKey AS ForeignKey AT p "
+            "UNNEST ( "
+            "  FROM Metadata.`Dataset` ds2 "
+            "    JOIN Metadata.`Datatype` dt2 ON ds2.DatatypeDataverseName = dt2.DataverseName "
+            "    AND ds2.DatatypeName = dt2.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_foreign_keys_fk_with_pk << " AND ds2.DatatypeDatabaseName = dt2.DatabaseName ";
+    }
+    query_foreign_keys_fk_with_pk << "  UNNEST ds2.ViewDetails.PrimaryKey AS primaryKey "
+            "  LET ";
+    query_foreign_keys_fk_with_pk << build_query_conditionally(statement, "FKTABLE_CAT", "FKTABLE_SCHEM", "ds1", "DataverseName", "DatabaseName").str();
+    query_foreign_keys_fk_with_pk << build_query_conditionally(statement, "PKTABLE_CAT", "PKTABLE_SCHEM", "ds2", "DataverseName", "DatabaseName").str();
+    query_foreign_keys_fk_with_pk << build_query_conditionally(statement, "fkTable_pk_CAT", "fkTable_pk_SCHEM", "ForeignKeys", "RefDataverseName", "RefDatabaseName").str();
+    query_foreign_keys_fk_with_pk << "      FKTABLE_NAME = ds1.DatasetName, "
+            "      fkTable_fk = ForeignKey[0], "
+            "      fkTable_pk_TABLE = ForeignKeys.RefDatasetName, "
+            "      PKTABLE_NAME = ds2.DatasetName, "
+            "      pkTable_pk = primaryKey[0], "
+            "    UPDATE_RULE =  ";
+    return query_foreign_keys_fk_with_pk;
+}
+
+
+std::stringstream get_query_foreign_keys_pk(Statement& statement){
+    std::cout<<"\nLOG: inside get_query_foreign_keys_pk";
+    std::stringstream query_foreign_keys_pk;
+    query_foreign_keys_pk << "SELECT subquery.* "
+            "FROM Metadata.`Dataset` ds1 "
+            "  JOIN Metadata.`Datatype` dt1 ON ds1.DatatypeDataverseName = dt1.DataverseName "
+            "  AND ds1.DatatypeName = dt1.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_foreign_keys_pk << " AND ds1.DatatypeDatabaseName = dt1.DatabaseName ";
+    }
+    query_foreign_keys_pk << "UNNEST ds1.ViewDetails.PrimaryKey AS primaryKey "
+            "UNNEST ( "
+            "  FROM Metadata.`Dataset` ds2 "
+            "    JOIN Metadata.`Datatype` dt2 ON ds2.DatatypeDataverseName = dt2.DataverseName "
+            "    AND ds2.DatatypeName = dt2.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_foreign_keys_pk << " AND ds2.DatatypeDatabaseName = dt2.DatabaseName ";
+    }
+    query_foreign_keys_pk << "  UNNEST ds2.ViewDetails.ForeignKeys AS ForeignKeys "
+            "  UNNEST ForeignKeys.ForeignKey AS ForeignKey AT p "
+            "  LET ";
+    query_foreign_keys_pk << build_query_conditionally(statement, "FKTABLE_CAT", "FKTABLE_SCHEM", "ds2", "DataverseName", "DatabaseName").str();
+    query_foreign_keys_pk << build_query_conditionally(statement, "PKTABLE_CAT", "PKTABLE_SCHEM", "ds1", "DataverseName", "DatabaseName").str();
+    query_foreign_keys_pk << build_query_conditionally(statement, "fkTable_pk_CAT", "fkTable_pk_SCHEM", "ForeignKeys", "RefDataverseName", "RefDatabaseName").str();
+    query_foreign_keys_pk << "      FKTABLE_NAME = ds2.DatasetName, "
+            "      fkTable_fk = ForeignKey[0], "
+            "      fkTable_pk_TABLE = ForeignKeys.RefDatasetName, "
+            "      PKTABLE_NAME = ds1.DatasetName, "
+            "      pkTable_pk = primaryKey[0], "
+            "    UPDATE_RULE = ";
+    return query_foreign_keys_pk;
+}
+
+
+std::stringstream get_query_foreign_keys_fk(Statement& statement){
+    std::cout<<"\nLOG: inside get_query_foreign_keys_fk";
+    std::stringstream query_foreign_keys_fk;
+    query_foreign_keys_fk << "SELECT subquery.*  "
+            "FROM Metadata.`Dataset` ds1 "
+            "  JOIN Metadata.`Datatype` dt1 ON ds1.DatatypeDataverseName = dt1.DataverseName "
+            "  AND ds1.DatatypeName = dt1.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_foreign_keys_fk << " AND ds1.DatatypeDatabaseName = dt1.DatabaseName ";
+    }
+    query_foreign_keys_fk << "UNNEST ds1.ViewDetails.ForeignKeys AS ForeignKeys "
+            "UNNEST ForeignKeys.ForeignKey AS ForeignKey AT p "
+            "UNNEST ( "
+            "  FROM Metadata.`Dataset` ds2 "
+            "    JOIN Metadata.`Datatype` dt2 ON ds2.DatatypeDataverseName = dt2.DataverseName "
+            "    AND ds2.DatatypeName = dt2.DatatypeName ";
+    if(statement.getParent().database_entity_support){
+        query_foreign_keys_fk << " AND ds2.DatatypeDatabaseName = dt2.DatabaseName ";
+    }
+    query_foreign_keys_fk << "  UNNEST ds2.ViewDetails.PrimaryKey AS primaryKey "
+            "  LET ";
+    query_foreign_keys_fk << build_query_conditionally(statement, "FKTABLE_CAT", "FKTABLE_SCHEM", "ds1", "DataverseName", "DatabaseName").str();
+    query_foreign_keys_fk << build_query_conditionally(statement, "PKTABLE_CAT", "PKTABLE_SCHEM", "ds2", "DataverseName", "DatabaseName").str();
+    query_foreign_keys_fk << build_query_conditionally(statement, "fkTable_pk_CAT", "fkTable_pk_SCHEM", "ForeignKeys", "RefDataverseName", "RefDatabaseName").str();
+    query_foreign_keys_fk << "      FKTABLE_NAME = ds1.DatasetName, "
+            "      fkTable_fk = ForeignKey[0], "
+            "      fkTable_pk_TABLE = ForeignKeys.RefDatasetName, "
+            "      PKTABLE_NAME = ds2.DatasetName, "
+            "      pkTable_pk = primaryKey[0], "
+            "    UPDATE_RULE = ";
+    return query_foreign_keys_fk;
 }

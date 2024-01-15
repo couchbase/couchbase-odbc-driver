@@ -917,7 +917,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLTables)(
             query << " on ds.DatatypeDataverseName = dt.DataverseName ";
             query << " and ds.DatatypeName = dt.DatatypeName ";
             query << " let ";
-            query << build_query_conditionally(statement).str();
+            query << build_query_conditionally(statement, "TABLE_CAT", "TABLE_SCHEM", "ds", "DataverseName", "DatabaseName").str();
             query << " TABLE_NAME = ds.DatasetName, ";
             query << " TABLE_TYPE = 'VIEW', ";
             query << " isView = ds.DatasetType = 'VIEW',";
@@ -1428,7 +1428,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(
 
         if (PKTableName && FKTableName) {
             // CASE - 3
-            query << query_foreign_keys_fk_with_pk;
+            query = get_query_foreign_keys_fk_with_pk(statement);
             query << SQL_SET_NULL << ",DELETE_RULE = " << SQL_SET_NULL << ", DEFERRABILITY = " << SQL_NOT_DEFERRABLE << " WHERE ";
 
             if (FKCatalogName) {
@@ -1460,7 +1460,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(
 
         } else if (PKTableName) {
             // CASE - 1
-            query << query_foreign_keys_pk;
+            query = get_query_foreign_keys_pk(statement);
             query << SQL_SET_NULL << ",DELETE_RULE = " << SQL_SET_NULL << ", DEFERRABILITY = " << SQL_NOT_DEFERRABLE << " WHERE ";
             if (PKCatalogName) {
                 query << " (PKTABLE_CAT is Not Null) AND coalesce(PKTABLE_CAT, '') = '" << escapeForSQL(pkCatalog) << "'";
@@ -1479,7 +1479,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLForeignKeys)(
 
         } else if (FKTableName) {
             // CASE - 2
-            query << query_foreign_keys_fk;
+            query = get_query_foreign_keys_fk(statement);
             query << SQL_SET_NULL << ",DELETE_RULE = " << SQL_SET_NULL << ", DEFERRABILITY = " << SQL_NOT_DEFERRABLE << " WHERE ";
 
             if (FKCatalogName) {
@@ -1602,7 +1602,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedureColumns)(
         const auto column = (ColumnName ? toUTF8(ColumnName, NameLength4) : "%");
 
         std::stringstream query;
-        query << query_procedure_columns;
+        query = get_query_procedure_columns(statement);
         query << SQL_PARAM_TYPE_UNKNOWN << ", DATA_TYPE = ";
         query << SQL_UNKNOWN_TYPE << ", TYPE_NAME = 'UNKNOWN', NULLABLE = ";
         query << SQL_NULLABLE_UNKNOWN << ", REMARKS = 'Default Remarks', SQL_DATA_TYPE = ";
@@ -1693,7 +1693,7 @@ SQLRETURN SQL_API EXPORTED_FUNCTION_MAYBE_W(SQLProcedures)(
         const auto proc = (ProcName ? toUTF8(ProcName, NameLength3) : "%");
 
         std::stringstream query;
-        query << query_procedures;
+        query = get_query_procedures(statement);
 
         const auto case_insensitive = (statement.getParent().getAttrAs<SQLUINTEGER>(SQL_ATTR_METADATA_ID, SQL_FALSE) != SQL_FALSE);
 
