@@ -321,6 +321,7 @@ inline INT_PTR ConfigDlgProc_(
 
                     auto ret = DialogBoxParam(module_instance, MAKEINTRESOURCE(MAKEINTRESOURCE_VALUE), hdlg, ConfigDlgProc, lpsetupdlg.GetAsLPARAM());
                     if(ret == IDOK){
+                        EndDialog(hdlg,IDOK);
                         return setDSNAttributes(hdlg, &lpsetupdlg, NULL);
                     }
                     else if (ret != IDCANCEL) {
