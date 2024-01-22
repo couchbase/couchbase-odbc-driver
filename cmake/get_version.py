@@ -20,7 +20,12 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
-manifest = sys.stdin.read()
+if len(sys.argv) > 1:
+    with open(sys.argv[1], 'r', encoding='utf-8') as m:
+        manifest = m.read()
+else:
+    manifest = sys.stdin.read()
+
 if manifest == '':
     # Failed to get manifest for some reason
     sys.exit(0)
@@ -31,4 +36,6 @@ verattr = root.find('project[@name="build"]/annotation[@name="VERSION"]')
 if verattr is not None:
     version = verattr.get('value')
     if version is not None:
+        # Since Windows requires a three-digit version, we append the
+        # build number to the version with a .
         print (version + "." + os.environ.get("BLD_NUM", "0"))

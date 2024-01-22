@@ -11,7 +11,7 @@ include (cmake/prevent_in_source_builds.cmake)
 # 2. Otherwise, we do NOT want to cache PRODUCT_VERSION, which will force
 #    CMake to re-discover it every time. In that case, the build number
 #    will always be "0000", and:
-#    2a. If "python" can be found, get the version from the manifest.
+#    2a. If "`" can be found, get the version from the manifest.
 #    2b. Otherwise, use the fallback version "0.0.0".
 IF (DEFINED PRODUCT_VERSION)
   SET (PRODUCT_VERSION "${PRODUCT_VERSION}" CACHE STRING "Product version with build number" FORCE)
@@ -22,19 +22,36 @@ ELSE ()
   ELSE ()
     SET (_repo_cmd repo)
   ENDIF ()
-  EXECUTE_PROCESS(
-    COMMAND ${_repo_cmd} manifest -r
-    COMMAND python cmake/get_version.py
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE _product_version
-    ERROR_VARIABLE _err_output
-    RESULTS_VARIABLE _result
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  IF (NOT _result STREQUAL "0;0")
-    SET (PRODUCT_VERSION "0.0.0")
+  IF (EXISTS "${CMAKE_SOURCE_DIR}/../manifest.xml")
+    # Building from a source tarball - use that manifest
+    EXECUTE_PROCESS(
+      COMMAND python cmake/get_version.py "../manifest.xml"
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      OUTPUT_VARIABLE _output
+      ERROR_VARIABLE _err_output
+      RESULTS_VARIABLE _result
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    IF (_result STREQUAL "0")
+      SET (PRODUCT_VERSION ${_output})
+    ENDIF ()
   ELSE ()
-    SET (PRODUCT_VERSION "${_product_version}")
+    # Try to pull from repo
+    EXECUTE_PROCESS(
+      COMMAND ${_repo_cmd} manifest -r
+      COMMAND python cmake/get_version.py
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE _output
+      ERROR_VARIABLE _err_output
+      RESULTS_VARIABLE _result
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    IF (_result STREQUAL "0;0")
+      SET (PRODUCT_VERSION ${_output})
+    ENDIF ()
+  ENDIF ()
+  IF (NOT DEFINED PRODUCT_VERSION)
+    SET (PRODUCT_VERSION "0.0.0")
   ENDIF ()
 ENDIF ()
 MESSAGE (STATUS "Building Couchbase ODBC Driver version ${PRODUCT_VERSION}")
