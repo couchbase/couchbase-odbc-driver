@@ -1,3 +1,7 @@
+# cbdeps package version of OpenSSL to use when building libcouchbase
+SET (OPENSSL_VERSION 3.3.0-1)
+
+
 get_filename_component (_current_dir_name "${CMAKE_CURRENT_LIST_DIR}" NAME)
 if (CMAKE_FOLDER)
     set (CMAKE_FOLDER "$CMAKE_FOLDER/${_current_dir_name}")
@@ -11,6 +15,9 @@ set(LCB_NO_TOOLS ON CACHE BOOL "" FORCE)
 set(LCB_BUILD_DTRACE OFF CACHE BOOL "" FORCE)
 set(LCB_UNINSTALL_TARGET OFF CACHE BOOL "" FORCE)
 set(LCB_BUILD_STATIC 1 CACHE INTERNAL "" FORCE)
+
+cbdep_install(PACKAGE openssl VERSION ${OPENSSL_VERSION})
+set(OPENSSL_ROOT_DIR "${CMAKE_CURRENT_BINARY_DIR}/openssl-${OPENSSL_VERSION}")
 add_subdirectory (libcouchbase)
 
 if (CH_ODBC_PREFER_BUNDLED_POCO OR NOT Poco_FOUND)
