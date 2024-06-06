@@ -18,7 +18,6 @@
 #define INI_PROTO           "Proto"           /* HTTP vs HTTPS */
 #define INI_SERVER          "Server"          /* Name of Server running the Couchbase service */
 #define INI_HOST            "Host"
-#define INI_PORT            "Port"            /* Port on which the Couchbase is listening */
 #define INI_TIMEOUT         "Timeout"         /* Connection timeout */
 #define INI_VERIFY_CONNECTION_EARLY "VerifyConnectionEarly"
 #define INI_SSLMODE         "SSLMode"         /* Use 'require' for https connections */
@@ -35,7 +34,7 @@
 #define INI_DRIVERLOG "DriverLog"
 #define INI_DRIVERLOGFILE   "DriverLogFile"
 #define INI_CERTIFICATEFILE_DEFAULT ""
-#define INI_CONNECT_TO_CAPELLA_COLUMNAR   "ConnectToCapellaColumnar"
+#define INI_CONNECT_TO_CAPELLA   "ConnectToCapella"
 
 #if defined(UNICODE)
 #   define INI_DSN_DEFAULT          DSN_DEFAULT_UNICODE
@@ -48,7 +47,6 @@
 #define INI_USERNAME_DEFAULT        ""
 #define INI_PASSWORD_DEFAULT        ""
 #define INI_SERVER_DEFAULT          ""
-#define INI_PORT_DEFAULT            ""
 #define INI_TIMEOUT_DEFAULT         "30"
 #define INI_VERIFY_CONNECTION_EARLY_DEFAULT "off"
 #define INI_SSLMODE_DEFAULT         ""
@@ -58,7 +56,7 @@
 #define INI_QUERY_TIMEOUT_DEFAULT "75" // = LCB_DEFAULT_ANALYTICS_TIMEOUT
 #define INI_HUGE_INT_AS_STRING_DEFAULT "off"
 #define INI_STRINGMAXLENGTH_DEFAULT "1048575"
-#define INI_CONNECT_TO_CAPELLA_COLUMNAR_DEFAULT ""
+#define INI_CONNECT_TO_CAPELLA_DEFAULT ""
 
 #ifdef NDEBUG
 #    define INI_DRIVERLOG_DEFAULT "off"

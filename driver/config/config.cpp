@@ -49,7 +49,6 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
     GET_CONFIG(username,        INI_USERNAME,        INI_USERNAME_DEFAULT);
     GET_CONFIG(password,        INI_PASSWORD,        INI_PASSWORD_DEFAULT);
     GET_CONFIG(server,          INI_SERVER,          INI_SERVER_DEFAULT);
-    GET_CONFIG(port,            INI_PORT,            INI_PORT_DEFAULT);
     GET_CONFIG(timeout,         INI_TIMEOUT,         INI_TIMEOUT_DEFAULT);
     GET_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY, INI_VERIFY_CONNECTION_EARLY_DEFAULT);
     GET_CONFIG(sslmode,         INI_SSLMODE,         INI_SSLMODE_DEFAULT);
@@ -62,7 +61,7 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
     GET_CONFIG(driver_log,       INI_DRIVERLOG,       INI_DRIVERLOG_DEFAULT);
     GET_CONFIG(driver_log_file,   INI_DRIVERLOGFILE,   INI_DRIVERLOGFILE_DEFAULT);
     GET_CONFIG(certificate_file, INI_CERTIFICATEFILE, INI_CERTIFICATEFILE_DEFAULT);
-    GET_CONFIG(connect_to_capella_columnar, INI_CONNECT_TO_CAPELLA_COLUMNAR, INI_CONNECT_TO_CAPELLA_COLUMNAR_DEFAULT);
+    GET_CONFIG(connect_to_capella, INI_CONNECT_TO_CAPELLA, INI_CONNECT_TO_CAPELLA_DEFAULT);
 
 #undef GET_CONFIG
 }
@@ -95,7 +94,6 @@ void writeDSNinfo(const ConnInfo * ci) {
     WRITE_CONFIG(username,        INI_USERNAME);
     WRITE_CONFIG(password,        INI_PASSWORD);
     WRITE_CONFIG(server,          INI_SERVER);
-    WRITE_CONFIG(port,            INI_PORT);
     WRITE_CONFIG(timeout,         INI_TIMEOUT);
     WRITE_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY);
     WRITE_CONFIG(sslmode,         INI_SSLMODE);
@@ -108,7 +106,7 @@ void writeDSNinfo(const ConnInfo * ci) {
     WRITE_CONFIG(driver_log,       INI_DRIVERLOG);
     WRITE_CONFIG(driver_log_file,   INI_DRIVERLOGFILE);
     WRITE_CONFIG(certificate_file,  INI_CERTIFICATEFILE);
-    WRITE_CONFIG(connect_to_capella_columnar,  INI_CONNECT_TO_CAPELLA_COLUMNAR);
+    WRITE_CONFIG(connect_to_capella,  INI_CONNECT_TO_CAPELLA);
 
 #undef WRITE_CONFIG
 }
@@ -339,7 +337,6 @@ key_value_map_t readDSNInfo(const std::string & dsn_utf8) {
              INI_PROTO,
              INI_SERVER,
              INI_HOST,
-             INI_PORT,
              INI_TIMEOUT,
              INI_VERIFY_CONNECTION_EARLY,
              INI_SSLMODE,

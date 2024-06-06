@@ -20,7 +20,6 @@ struct ConnInfo {
     std::string username;
     std::string password;
     std::string server;
-    std::string port;
     std::string timeout;
     std::string login_timeout;
     std::string query_timeout;
@@ -35,7 +34,7 @@ struct ConnInfo {
     std::string stringmaxlength;
     std::string driver_log;
     std::string driver_log_file;
-    std::string connect_to_capella_columnar;
+    std::string connect_to_capella;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

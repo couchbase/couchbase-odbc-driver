@@ -50,7 +50,7 @@ int main () {
     Sample SQLColumns call
     Note: Verfify following scenarios with Capella Columnar always:
     1) A database with two different scopes, i.e., "a.b1" and "a.b2".
-    2) Two different databases with ssame scope name, i.e., "a1.b" and "a2.b".
+    2) Two different databases with same scope name, i.e., "a1.b" and "a2.b".
     (Ref primary_keys.c fpr more)
     */
     retcode = SQLColumns(hstmt, "travel-sample", 14, "inventory", 9, "singlecol", 8, "name", 4);

@@ -202,7 +202,6 @@ if (CH_ODBC_ENABLE_INSTALL)
     install(
         FILES
             packaging/couchbase-odbc.tdc.sample
-            packaging/GoldfishCertificate.txt
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/config
         COMPONENT Documentation
     )

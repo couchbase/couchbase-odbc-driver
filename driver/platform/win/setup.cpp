@@ -62,7 +62,6 @@ inline BOOL copyAttributes(ConnInfo * ci, LPCTSTR attribute, LPCTSTR value) {
     COPY_ATTR_IF(desc,       INI_DESC);
     COPY_ATTR_IF(url,        INI_URL);
     COPY_ATTR_IF(server,     INI_SERVER);
-    COPY_ATTR_IF(port,       INI_PORT);
     COPY_ATTR_IF(username,   INI_USERNAME);
     COPY_ATTR_IF(username,   INI_UID);
     COPY_ATTR_IF(password,   INI_PASSWORD);
@@ -238,7 +237,6 @@ inline INT_PTR ConfigDlgProc_(
             SET_DLG_ITEM(desc, IDC_DESCRIPTION);
             SET_DLG_ITEM(url, IDC_URL);
             SET_DLG_ITEM(server, IDC_SERVER_HOST);
-            SET_DLG_ITEM(port, IDC_SERVER_PORT);
             SET_DLG_ITEM(catalog, IDC_CATALOG);
             SET_DLG_ITEM(username, IDC_USER);
             SET_DLG_ITEM(password, IDC_PASSWORD);
@@ -271,7 +269,6 @@ inline INT_PTR ConfigDlgProc_(
                     GET_DLG_ITEM(desc, IDC_DESCRIPTION);
                     GET_DLG_ITEM(url, IDC_URL);
                     GET_DLG_ITEM(server, IDC_SERVER_HOST);
-                    GET_DLG_ITEM(port, IDC_SERVER_PORT);
                     GET_DLG_ITEM(catalog, IDC_CATALOG);
                     GET_DLG_ITEM(username, IDC_USER);
                     GET_DLG_ITEM(password, IDC_PASSWORD);
@@ -299,20 +296,20 @@ inline INT_PTR ConfigDlgProc_(
         ci.NAME = (isChecked == BST_CHECKED) ? TRUE_VALUE : FALSE_VALUE;          \
     }
 
-                    bool capella_columnar_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_1) == BST_CHECKED;
-                    bool on_prem_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_2) == BST_CHECKED;
+                    bool capella_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_1) == BST_CHECKED;
+                    bool couchbase_server_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_2) == BST_CHECKED;
                     int MAKEINTRESOURCE_VALUE;
 
-                    if(capella_columnar_checked && on_prem_checked){
+                    if(capella_checked && couchbase_server_checked){
                         MAKEINTRESOURCE_VALUE = IDD_BOTH_DIALOG;
                     }
-                    else if(capella_columnar_checked) {
-                        MAKEINTRESOURCE_VALUE = IDD_CAPELLA_COLUMNAR_DIALOG;
-                        SET_CHECKBOX_STRING(connect_to_capella_columnar, IDC_CHECKBOX_1, "yes", "no");
+                    else if(capella_checked) {
+                        MAKEINTRESOURCE_VALUE = IDD_CAPELLA_DIALOG;
+                        SET_CHECKBOX_STRING(connect_to_capella, IDC_CHECKBOX_1, "yes", "no");
                     }
-                    else if(on_prem_checked){
-                        MAKEINTRESOURCE_VALUE = IDD_ON_PREM_DIALOG;
-                        SET_CHECKBOX_STRING(connect_to_capella_columnar, IDC_CHECKBOX_2, "no", "yes");
+                    else if(couchbase_server_checked){
+                        MAKEINTRESOURCE_VALUE = IDD_COUCHBASE_SERVER_DIALOG;
+                        SET_CHECKBOX_STRING(connect_to_capella, IDC_CHECKBOX_2, "no", "yes");
                     }
                     else {
                         MAKEINTRESOURCE_VALUE = IDD_NONE_DIALOG;

@@ -41,6 +41,8 @@ private:
     void setConfiguration(const key_value_map_t & cs_fields, const key_value_map_t & dsn_fields);
     std::unordered_map<SQLHANDLE, std::shared_ptr<Descriptor>> descriptors;
     std::unordered_map<SQLHANDLE, std::shared_ptr<Statement>> statements;
+    const int DEFAULT_PRODUCTION_SSL_PORT = 11207;
+    const int DEFAULT_PRODUCTION_PORT = 11210;
 public:
     std::string dsn;
     std::uint32_t login_timeout;
@@ -59,7 +61,7 @@ public:
     int retry_count = 3;
     int redirect_limit = 10;
     bool database_entity_support = false;
-    bool connect_to_capella_columnar = false;
+    bool connect_to_capella = false;
     bool two_part_scope_name = false;
     std::string scope_part_one;
     std::string scope_part_two;
@@ -91,9 +93,11 @@ public:
 
     //Build Connection String
     void build_conn_str_on_prem_ssl(char *);
-    void build_conn_str_capella_columnar(char *);
+    void build_conn_str_capella(char *);
     void build_conn_str_on_prem_without_ssl(char *);
     void check_if_two_part_scope_name();
+    int extractPort(std::string&);
+    void setDefaultPortIfZero(int&, int);
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

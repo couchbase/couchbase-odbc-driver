@@ -113,34 +113,36 @@ void Connection::connect(const std::string & connection_string) {
     const char * cb_password = password.c_str();
     char conn_str[1024];
     bool connectInSSLMode = sslmode == "require" ? true : false;
-    bool portIsProvided = port != 0 ? true :false;
+    port = extractPort(server);
 
     std::cout<<"\nLOG: username is :-> "<<username;
     std::cout<<"\nLOG: sslmode is :-> "<<sslmode;
-    std::cout<<"\nLOG: URL is :-> "<<url;
-    std::cout<<"\nLOG: server is :-> "<<server;
-    std::cout<<"\nLOG: database is :-> "<<catalog;
-    std::cout<<"\nLOG: port is :-> "<<port;
+    std::cout<<"\nLOG: Connection String is :-> "<<url;
+    std::cout<<"\nLOG: Host is :-> "<<server;
+    std::cout<<"\nLOG: Scope/Database is :-> "<<catalog;
     std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
-    std::cout<<"\nLOG: portIsProvides is :-> "<<portIsProvided;
-    std::cout<<"\nLOG: connect_to_capella_columnar is :-> "<<connect_to_capella_columnar;
+    std::cout<<"\nLOG: connect_to_capella is :-> "<<connect_to_capella;
 
-    if(connect_to_capella_columnar){
+    if(connect_to_capella){
         //Always in SSL Mode, uses public certificate.
-        build_conn_str_capella_columnar(conn_str);
+        build_conn_str_capella(conn_str);
     }
-    else if(!connect_to_capella_columnar) {
+    else if(!connect_to_capella) {
         if(connectInSSLMode){
-            std::cout<<"\nLOG: Inside connectInSSLMode & portIsProvided is";
+            setDefaultPortIfZero(port, DEFAULT_PRODUCTION_SSL_PORT);
+            std::cout<<"\nLOG: Inside connectInSSLMode";
+            std::cout<<"\nLOG: port is :-> "<<port;
             build_conn_str_on_prem_ssl(conn_str);
         }
         else {
-            std::cout<<"\nLOG: Inside !connectInSSLMode & portIsProvided is";
+            setDefaultPortIfZero(port, DEFAULT_PRODUCTION_PORT);
+            std::cout<<"\nLOG: Inside !connectInSSLMode";
+            std::cout<<"\nLOG: port is :-> "<<port;
             build_conn_str_on_prem_without_ssl(conn_str);
         }
     }
     else {
-        std::cout<<"\nLOG: Neither Capella Columnar nor On-Prem is selected";
+        std::cout<<"\nLOG: Neither Capella nor Couchbase Server is selected";
     }
 
     lcb_CREATEOPTS * lcb_create_options = NULL;
@@ -210,11 +212,11 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
                 url = value;
             }
         }
-        else if (Poco::UTF8::icompare(key, INI_CONNECT_TO_CAPELLA_COLUMNAR) == 0) {
+        else if (Poco::UTF8::icompare(key, INI_CONNECT_TO_CAPELLA) == 0) {
             recognized_key = true;
             valid_value = true;
             if (valid_value) {
-                connect_to_capella_columnar = (value == "yes");
+                connect_to_capella = (value == "yes");
             }
         }
         else if (
@@ -256,18 +258,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = true;
             if (valid_value) {
                 server = value;
-            }
-        }
-        else if (Poco::UTF8::icompare(key, INI_PORT) == 0) {
-            recognized_key = true;
-            unsigned int typed_value = 0;
-            valid_value = (value.empty() || (
-                Poco::NumberParser::tryParseUnsigned(value, typed_value) &&
-                typed_value > 0 &&
-                typed_value <= std::numeric_limits<decltype(port)>::max()
-            ));
-            if (valid_value) {
-                port = typed_value;
             }
         }
         else if (Poco::UTF8::icompare(key, INI_TIMEOUT) == 0) {
@@ -451,16 +441,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
         if (server.empty())
             server = uri.getHost();
 
-        if (port == 0) {
-            // TODO(dakovalkov): This doesn't work when you explicitly set 80 for http and 443 for https due to Poco's getPort() behavior.
-            const auto tmp_port = uri.getPort();
-            if (
-                (Poco::UTF8::icompare(proto, "https") == 0 && tmp_port != 443) ||
-                (Poco::UTF8::icompare(proto, "http") == 0 && tmp_port != 80)
-            )
-                port = tmp_port;
-        }
-
         if (path.empty())
             path = uri.getPath();
 
@@ -624,20 +604,12 @@ void Connection::build_conn_str_on_prem_ssl(char *conn_str) {
     std::cout<<"\nLOG: Inside build_conn_str_on_prem_ssl is :-> "<<conn_str;
 }
 
-void Connection::build_conn_str_capella_columnar(char *conn_str){
-    #ifdef _WIN32
+void Connection::build_conn_str_capella(char *conn_str){
     //Connection String
     if(sprintf(conn_str, "%s",url.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
-    std::cout<<"\nLOG: Inside build_conn_str_capella_columnar WIN32 is :-> "<<conn_str;
-    #else
-    //Connection String
-    if(sprintf(conn_str, "%s",url.c_str())>=1024){
-        std::cout << "Insufficient conn_str buffer space\n";
-    }
-    std::cout<<"\nLOG: Inside build_conn_str_capella_columnar MAC is :-> "<<conn_str;
-    #endif
+    std::cout<<"\nLOG: Inside build_conn_str_capella WIN32 is :-> "<<conn_str;
 }
 
 void Connection::build_conn_str_on_prem_without_ssl(char *conn_str){
@@ -656,5 +628,34 @@ void Connection::check_if_two_part_scope_name(){
         // Extract substrings before and after the forward slash
         scope_part_one = catalog.substr(0, slashPosition);
         scope_part_two = catalog.substr(slashPosition + 1);
+    }
+}
+
+int Connection::extractPort(std::string& server) {
+    // Find the position of the colon
+    size_t colonPos = server.find(':');
+    if (colonPos == std::string::npos) {
+        return 0;
+    }
+
+    // Extract the substring after the colon
+    std::string portStr = server.substr(colonPos + 1);
+
+    // Check if the extracted part is a valid integer
+    std::istringstream iss(portStr);
+    int portValue;
+    if (!(iss >> portValue) || !iss.eof()) {
+        throw std::invalid_argument("Invalid format: port is not an integer");
+    }
+
+    server = server.substr(0, colonPos);
+    return portValue;
+}
+
+void Connection::setDefaultPortIfZero(int& port, int productionPort){
+    std::cout<<" \nLOG: setDefaultPortIfZero "<<port<<" "<<productionPort;
+    if(port == 0){
+        port = productionPort;
+        std::cout<<"\nLOG: port=productionPort ->"<<port;
     }
 }
