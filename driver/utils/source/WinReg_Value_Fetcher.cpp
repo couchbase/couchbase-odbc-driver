@@ -24,37 +24,4 @@ WCHAR* fetchDriverKeyDataFromCouchbaseODBCDriverWinReg(){
     }
     return 0;
 }
-
-std::string getGoldfishCertPathWindows(){
-    std::wstring ws( fetchDriverKeyDataFromCouchbaseODBCDriverWinReg() );
-    std::string DriverPath( ws.begin(), ws.end() );
-
-    /*
-        Driver Path Example-> C:\Program Files\couchbase-odbc\bin\couchbaseodbcw.dll
-        It is dynamic, and depends on what user selects at the time of installation
-        It will have an entry in Windows Registry under :
-        HKEY_LOCAL_MACHINE\SOFTWARE\\ODBC\\ODBCINST.INI\\Couchbase ODBC Driver (Unicode)
-        Key : Driver, value : Driver Path
-
-        Installation of Couchbase ODBC Driver, installs the GoldfisgCertificate.txt at
-        GoldfishCertPath Example-> C:\Program Files\couchbase-odbc\share\doc\couchbase-odbc\config\GoldfishCertificate.txt
-        This path is wrt the Driver Path Example above, and will change with the Driver Path.
-    */
-
-    std::string searchString = "\\bin";
-    size_t pos = DriverPath.find(searchString);
-    if (pos != std::string::npos) {
-        std::string temp = DriverPath.substr(0, pos);
-        for (size_t i = 0; i < temp.length(); ++i) {
-            if (temp[i] == '\\') {
-                temp.insert(i, 1, '\\');
-                i++;
-            }
-        }
-        return temp + "\\\\share\\\\doc\\\\couchbase-odbc\\\\config\\\\GoldfishCertificate.txt";
-    } else {
-        std::cerr << "Search string not found." << std::endl;
-    }
-    return "";
-}
 #endif

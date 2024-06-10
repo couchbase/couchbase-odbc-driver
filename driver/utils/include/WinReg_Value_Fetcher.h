@@ -6,5 +6,4 @@
 #define KEY_WOW64_64KEY         (0x0100)
 
 WCHAR* fetchDriverKeyDataFromCouchbaseODBCDriverWinReg();
-std::string getGoldfishCertPathWindows();
 #endif

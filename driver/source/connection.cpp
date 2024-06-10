@@ -626,9 +626,8 @@ void Connection::build_conn_str_on_prem_ssl(char *conn_str) {
 
 void Connection::build_conn_str_capella_columnar(char *conn_str){
     #ifdef _WIN32
-    //Connection String?truststorepath=path/to/certificate_file
-    std::string GoldfishCertPath = getGoldfishCertPathWindows();
-    if(sprintf(conn_str, "%s?truststorepath=%s",url.c_str(),GoldfishCertPath.c_str())>=1024){
+    //Connection String
+    if(sprintf(conn_str, "%s",url.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
     }
     std::cout<<"\nLOG: Inside build_conn_str_capella_columnar WIN32 is :-> "<<conn_str;
