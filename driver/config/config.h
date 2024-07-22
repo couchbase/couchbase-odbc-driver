@@ -35,6 +35,7 @@ struct ConnInfo {
     std::string driver_log;
     std::string driver_log_file;
     std::string connect_to_capella;
+    std::string collect_logs;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

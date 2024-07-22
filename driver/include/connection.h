@@ -43,7 +43,11 @@ private:
     std::unordered_map<SQLHANDLE, std::shared_ptr<Statement>> statements;
     const int DEFAULT_PRODUCTION_SSL_PORT = 11207;
     const int DEFAULT_PRODUCTION_PORT = 11210;
+    std::string log_file;
+    int log_level = 5;
 public:
+    std::ofstream outFile;
+    std::streambuf* coutBuffer = nullptr;
     std::string dsn;
     std::uint32_t login_timeout;
     bool is_set_login_timeout;
@@ -62,6 +66,7 @@ public:
     int redirect_limit = 10;
     bool database_entity_support = false;
     bool connect_to_capella = false;
+    bool collect_logs = false;
     bool two_part_scope_name = false;
     std::string scope_part_one;
     std::string scope_part_two;
@@ -98,6 +103,7 @@ public:
     void check_if_two_part_scope_name();
     int extractPort(std::string&);
     void setDefaultPortIfZero(int&, int);
+    void redirectCoutToFile(const std::string& filename, std::ofstream& outFile, std::streambuf*& coutBuffer);
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

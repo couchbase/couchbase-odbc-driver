@@ -115,6 +115,12 @@ void Connection::connect(const std::string & connection_string) {
     bool connectInSSLMode = sslmode == "require" ? true : false;
     port = extractPort(server);
 
+    auto now = std::chrono::system_clock::now();
+    // Convert to time_t for human-readable format
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    std::cout<<"\nLOG: Logs collected at: " << std::put_time(std::gmtime(&now_time), "%Y-%m-%d %H:%M:%S");
+
+    std::cout<<"\nLOG: log_file is :-> "<<log_file;
     std::cout<<"\nLOG: username is :-> "<<username;
     std::cout<<"\nLOG: sslmode is :-> "<<sslmode;
     std::cout<<"\nLOG: Connection String is :-> "<<url;
@@ -122,6 +128,16 @@ void Connection::connect(const std::string & connection_string) {
     std::cout<<"\nLOG: Scope/Database is :-> "<<catalog;
     std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
     std::cout<<"\nLOG: connect_to_capella is :-> "<<connect_to_capella;
+    std::cout<<"\nLOG: collect logs is:  :-> "<<collect_logs;
+
+    #ifdef _WIN32
+        if(collect_logs){
+            log_file = getLcbLogPath();
+            if(!log_file.empty()){
+                redirectCoutToFile(log_file, outFile,  coutBuffer);
+            }
+        }
+    #endif
 
     if(connect_to_capella){
         //Always in SSL Mode, uses public certificate.
@@ -217,6 +233,13 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = true;
             if (valid_value) {
                 connect_to_capella = (value == "yes");
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_COLLECT_LOG) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                collect_logs = (value == "yes");
             }
         }
         else if (
@@ -598,25 +621,47 @@ std::string Connection::handleNativeSql(const std::string & q) {
 
 void Connection::build_conn_str_on_prem_ssl(char *conn_str) {
     //couchbases://Host:port?truststorepath=path/to/certificate_file
-    if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s",server.c_str(),port,certificate_file.c_str())>=1024){
+    std::cout<<"\nLOG: log_file is :-> "<<log_file;
+    if(collect_logs){
+        if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s&console_log_level=%hu&console_log_file=%s",server.c_str(),port,certificate_file.c_str(), log_level, log_file.c_str())>=1024){
         std::cout << "Insufficient conn_str buffer space\n";
+        }
+    }
+    else{
+        if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s",server.c_str(),port,certificate_file.c_str())>=1024){
+        std::cout << "Insufficient conn_str buffer space\n";
+        }
     }
     std::cout<<"\nLOG: Inside build_conn_str_on_prem_ssl is :-> "<<conn_str;
 }
 
 void Connection::build_conn_str_capella(char *conn_str){
     //Connection String
-    if(sprintf(conn_str, "%s",url.c_str())>=1024){
-        std::cout << "Insufficient conn_str buffer space\n";
+    if(collect_logs){
+        if(sprintf(conn_str, "%s?console_log_level=%hu&console_log_file=%s",url.c_str(), log_level, log_file.c_str())>=1024){
+            std::cout << "Insufficient conn_str buffer space\n";
+        }
+    }
+    else {
+        if(sprintf(conn_str, "%s",url.c_str())>=1024){
+            std::cout << "Insufficient conn_str buffer space\n";
+        }
     }
     std::cout<<"\nLOG: Inside build_conn_str_capella WIN32 is :-> "<<conn_str;
 }
 
 void Connection::build_conn_str_on_prem_without_ssl(char *conn_str){
-     //couchbase://Host:port
-    if (sprintf(conn_str, "couchbase://%s:%hu", server.c_str(), port) >= 1024) {
+     //couchbase://Host:portcls
+    if(collect_logs){
+        if (sprintf(conn_str, "couchbase://%s:%hu?console_log_level=%hu&console_log_file=%s", server.c_str(), port, log_level, log_file.c_str()) >= 1024) {
         std::cout << "Insufficient conn_str buffer space\n";
         }
+    }
+    else {
+        if (sprintf(conn_str, "couchbase://%s:%hu", server.c_str(), port) >= 1024) {
+        std::cout << "Insufficient conn_str buffer space\n";
+        }
+    }
     std::cout<<"\nLOG: Inside build_conn_str_on_prem_without_ssl :-> "<<conn_str;
 }
 
@@ -658,4 +703,15 @@ void Connection::setDefaultPortIfZero(int& port, int productionPort){
         port = productionPort;
         std::cout<<"\nLOG: port=productionPort ->"<<port;
     }
+}
+
+void Connection::redirectCoutToFile(const std::string& filename, std::ofstream& outFile, std::streambuf*& coutBuffer) {
+    // Open a file in write mode
+    outFile.open(filename);
+
+    // Save the current buffer of std::cout
+    coutBuffer = std::cout.rdbuf();
+
+    // Redirect std::cout to outFile
+    std::cout.rdbuf(outFile.rdbuf());
 }

@@ -20,6 +20,7 @@
 #define IDC_URL 1010
 #define IDC_CHECKBOX_1 2001
 #define IDC_CHECKBOX_2 2002
+#define IDC_CHECKBOX_3 2003
 
 #define IDCONTINUE 201
 

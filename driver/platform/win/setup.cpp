@@ -300,6 +300,8 @@ inline INT_PTR ConfigDlgProc_(
                     bool couchbase_server_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_2) == BST_CHECKED;
                     int MAKEINTRESOURCE_VALUE;
 
+                    SET_CHECKBOX_STRING(collect_logs, IDC_CHECKBOX_3, "yes", "no");
+
                     if(capella_checked && couchbase_server_checked){
                         MAKEINTRESOURCE_VALUE = IDD_BOTH_DIALOG;
                     }

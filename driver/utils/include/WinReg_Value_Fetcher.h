@@ -5,5 +5,6 @@
 #define KEY_WOW64_32KEY         (0x0200)
 #define KEY_WOW64_64KEY         (0x0100)
 
-WCHAR* fetchDriverKeyDataFromCouchbaseODBCDriverWinReg();
+std::wstring fetchDriverKeyDataFromCouchbaseODBCDriverWinReg();
+std::string getLcbLogPath();
 #endif

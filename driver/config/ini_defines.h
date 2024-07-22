@@ -35,6 +35,7 @@
 #define INI_DRIVERLOGFILE   "DriverLogFile"
 #define INI_CERTIFICATEFILE_DEFAULT ""
 #define INI_CONNECT_TO_CAPELLA   "ConnectToCapella"
+#define INI_COLLECT_LOG   "CollectLogs"         /*libcouchbase debug logs*/
 
 #if defined(UNICODE)
 #   define INI_DSN_DEFAULT          DSN_DEFAULT_UNICODE
@@ -57,6 +58,7 @@
 #define INI_HUGE_INT_AS_STRING_DEFAULT "off"
 #define INI_STRINGMAXLENGTH_DEFAULT "1048575"
 #define INI_CONNECT_TO_CAPELLA_DEFAULT ""
+#define INI_COLLECT_LOG_DEFAULT ""
 
 #ifdef NDEBUG
 #    define INI_DRIVERLOG_DEFAULT "off"
