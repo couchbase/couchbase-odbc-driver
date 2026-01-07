@@ -1,4 +1,5 @@
-//This is a simple progran that connects to couchbase analytics/ enterprise analytics WITH SSL
+//This is a simple progran that connects to couchbase analytics/ enterprise analytics WITH client
+// cert auth with encrypted private keys (file protected with passphrase)
 #include <libcouchbase/couchbase.h>
 #include <iostream>
 #include <string>
@@ -23,32 +24,17 @@ int main() {
     lcb_INSTANCE *instance;
     lcb_CREATEOPTS *options = NULL;
 
-    // host is localhost if the server is running locally
-    std::string host;
-    // port is the kv port
-    // 11207 is the default kv port for 8091 mgmt port
-    // 11998 is the default kv port for 9000 mgmt port
-    // give this value based on that
-    std::string port;
-    std::string certPath;
+    // note the port '11307' is the KV Port configured using alternate address for 9091 mgmt port
+    // 11207 can be used for 8091 mgmt port
+    // 11998 for the 9000 mgmt port
+    std::string conn_str =
+            "couchbases://localhost:11307"
+            "?truststorepath=/Users/janhavi.tripurwar/Desktop/certs/server_ca.pem"
+            "&certpath=/Users/janhavi.tripurwar/Desktop/certs/user.pem"
+            "&keypath=/Users/janhavi.tripurwar/Desktop/certs/encrypted_user.key";
 
-    //take inputs
-    std::cout << "Enter the host name: ";
-    std::cin>>host;
-    std::cout << "Enter the port: ";
-    std::cin>>port;
-    std::cout << "Enter the certificate path: ";
-    std::cin>>certPath;
+    std::string key_password = "my_secret_key";
 
-    std::string conn_str = "couchbases://" + host + ":" + port + "?truststorepath=" + certPath;
-
-    std::cout << "Enter the username: ";
-    std::string username;
-    std::cin>>username;
-
-    std::cout << "Enter the passworde: ";
-    std::string password;
-    std::cin>>password;
 
     // PRINTING THE CONNECTION STRING
     std::cout << "------------------------------------------------" << std::endl;
@@ -56,8 +42,10 @@ int main() {
     std::cout << "------------------------------------------------" << std::endl;
 
     lcb_createopts_create(&options, LCB_TYPE_CLUSTER);
-    lcb_createopts_connstr(options, conn_str.c_str(), conn_str.length());
-    lcb_createopts_credentials(options, username.c_str(), username.length(), password.c_str(), password.length());
+    lcb_createopts_connstr(options, conn_str.c_str(), strlen(conn_str.c_str()));
+    // lcb_createopts_tls_key_password(options, key_password.c_str(), key_password.length());
+    // if this is commented, it will ask for "Enter PEM pass phrase:", this is the same
+    // passphrase which protects encrypted_user.key
 
     lcb_STATUS err = lcb_create(&instance, options);
     lcb_createopts_destroy(options);
@@ -79,8 +67,8 @@ int main() {
     std::cout << ":white_check_mark: Connected to Cluster!" << std::endl;
 
     lcb_CMDANALYTICS *cmd;
-    std::string query = "select 1;";
-    // std::string query = "select * from `travel-sample`.inventory.landmark limit 1;";
+    // std::string query = "select 1;";
+    std::string query = "select * from `travel-sample`.inventory.landmark limit 1;";
     lcb_cmdanalytics_create(&cmd);
     lcb_cmdanalytics_statement(cmd, query.c_str(), query.length());
     lcb_cmdanalytics_callback(cmd, analytics_callback);
@@ -102,28 +90,31 @@ int main() {
 
 /*
 Step 1: command to compile:
-g++ -std=c++17 1.connect_to_analytics_with_ssl.cpp -o prog \
+g++ -std=c++17 3.client_cert_auth_encrypted_key.cpp -o prog \
   -I/opt/homebrew/opt/libcouchbase/include \
   -L/opt/homebrew/opt/libcouchbase/lib \
   -lcouchbase
 
-Step 2:  command to run:
+Step 2:  command to compile:
 ./prog
 
-Step 3: give inputs -> host, port, certificate path, username and password
 
 Expected Output example
+LOG: Connection String -> couchbases://localhost:11307?truststorepath=/Users/janhavi.tripurwar/Desktop/certs/server_ca.pem&certpath=/Users/janhavi.tripurwar/Desktop/certs/user.pem&keypath=/Users/janhavi.tripurwar/Desktop/certs/encrypted_user.key
 ------------------------------------------------
-LOG: Connection String -> couchbases://localhost:11998?truststorepath=/Users/janhavi.tripurwar/Desktop/cert.txt
-------------------------------------------------
+Enter PEM pass phrase:
 :white_check_mark: Connected to Cluster!
-Executing: select 1;...
-Result: {"$1":1}
+Executing: select * from `travel-sample`.inventory.landmark limit 1;...
+Result: .....
 :white_check_mark: Query Completed.
 
 
 In case of error, set the logging:
 export LCB_LOGLEVEL=5 -> from the terminal
+
+common error:
+The error bad decrypt explicitly means that the password provided in the C++ code does NOT match the password you used to encrypt the file encrypted_user.key.
+ rror:1C800064:Provider routines::bad decrypt
 
 
 Check what ports are mapped to using http://localhost:8091/pools/default/nodeServices
