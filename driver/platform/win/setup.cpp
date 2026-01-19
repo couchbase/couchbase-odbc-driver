@@ -226,6 +226,13 @@ inline INT_PTR ConfigDlgProc_(
 
             std::basic_string<CharTypeLPCTSTR> value;
 
+            HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
+            SendMessage(hSSLMode, CB_ADDSTRING, 0, (LPARAM)TEXT("Disable")); // Index 0
+            SendMessage(hSSLMode, CB_ADDSTRING, 0, (LPARAM)TEXT("Enable"));  // Index 1
+
+            bool sslEnabled = (ci.sslmode == "1" || Poco::UTF8::icompare(ci.sslmode, "require") == 0);
+            SendMessage(hSSLMode, CB_SETCURSEL, sslEnabled ? 1 : 0, 0);
+
 #define SET_DLG_ITEM(NAME, ID)                                    \
     {                                                             \
         value.clear();                                            \
@@ -253,6 +260,14 @@ inline INT_PTR ConfigDlgProc_(
                 case IDOK: {
                     auto & lpsetupdlg = *(SetupDialogData *)GetWindowLongPtr(hdlg, DWLP_USER);
                     auto & ci = lpsetupdlg.ci;
+                    // Handle SSL Mode ComboBox
+                    HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
+                    int selectedIndex = SendMessage(hSSLMode, CB_GETCURSEL, 0, 0);
+                    if (selectedIndex == 1) {
+                        ci.sslmode = "1"; // or "yes"
+                    } else {
+                        ci.sslmode = "0"; // or "no"
+                    }
 
                     std::basic_string<CharTypeLPCTSTR> value;
 
@@ -272,7 +287,6 @@ inline INT_PTR ConfigDlgProc_(
                     GET_DLG_ITEM(catalog, IDC_CATALOG);
                     GET_DLG_ITEM(username, IDC_USER);
                     GET_DLG_ITEM(password, IDC_PASSWORD);
-                    GET_DLG_ITEM(sslmode, IDC_SSLMODE);
                     GET_DLG_ITEM(certificate_file,IDC_CERTIFICATEFILE);
 
 #undef GET_DLG_ITEM

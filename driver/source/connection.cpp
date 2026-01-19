@@ -112,7 +112,7 @@ void Connection::connect(const std::string & connection_string) {
     const char * cb_username = username.c_str();
     const char * cb_password = password.c_str();
     char conn_str[1024];
-    bool connectInSSLMode = sslmode == "require" ? true : false;
+    bool connectInSSLMode = isYes(sslmode);
     port = extractPort(server);
 
     auto now = std::chrono::system_clock::now();
@@ -303,12 +303,7 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
         }
         else if (Poco::UTF8::icompare(key, INI_SSLMODE) == 0) {
             recognized_key = true;
-            valid_value = (
-                value.empty() ||
-                Poco::UTF8::icompare(value, "allow") == 0 ||
-                Poco::UTF8::icompare(value, "prefer") == 0 ||
-                Poco::UTF8::icompare(value, "require") == 0
-            );
+            valid_value = (value.empty() || isYesOrNo(value));
             if (valid_value) {
                 sslmode = value;
             }
