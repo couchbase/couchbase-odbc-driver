@@ -107,7 +107,7 @@ BEGIN
     LTEXT           "SSLMode:",IDC_STATIC,18,86,44,8
     LTEXT           "User:",IDC_STATIC,18,103,44,8
     LTEXT           "Password:",IDC_STATIC,18,120,44,8
-    LTEXT           "Certificate File Path:",IDC_STATIC,18,137,84,8
+    LTEXT           "Certificate File Path:",IDC_CERTIFICATEFILE_LABEL,18,137,84,8
 END
 
 IDD_NONE_DIALOG DIALOGEX 0, 0, 195, 100

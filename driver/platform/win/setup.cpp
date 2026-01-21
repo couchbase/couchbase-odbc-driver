@@ -209,6 +209,14 @@ inline void CenterDialog(HWND hdlg) {
     return;
 }
 
+void ToggleCertificateVisibility(HWND hdlg, bool show) {
+    int cmdShow = show ? SW_SHOW : SW_HIDE;
+    // Hide/Show the Label ("Certificate File Path:")
+    ShowWindow(GetDlgItem(hdlg, IDC_CERTIFICATEFILE_LABEL), cmdShow);
+    // Hide/Show the Text Box
+    ShowWindow(GetDlgItem(hdlg, IDC_CERTIFICATEFILE), cmdShow);
+}
+
 inline INT_PTR ConfigDlgProc_(
     HWND hdlg,
     UINT wMsg,
@@ -232,6 +240,8 @@ inline INT_PTR ConfigDlgProc_(
 
             bool sslEnabled = (ci.sslmode == "1" || Poco::UTF8::icompare(ci.sslmode, "require") == 0);
             SendMessage(hSSLMode, CB_SETCURSEL, sslEnabled ? 1 : 0, 0);
+            // [CALL 1] Set initial visibility based on loaded config
+            ToggleCertificateVisibility(hdlg, sslEnabled);
 
 #define SET_DLG_ITEM(NAME, ID)                                    \
     {                                                             \
@@ -256,6 +266,14 @@ inline INT_PTR ConfigDlgProc_(
         }
 
         case WM_COMMAND: {
+            // [CALL 2] Handle Dropdown Change Event
+            if (LOWORD(wParam) == IDC_SSLMODE && HIWORD(wParam) == CBN_SELCHANGE) {
+                HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
+                int selectedIndex = SendMessage(hSSLMode, CB_GETCURSEL, 0, 0);
+                // Index 1 is "Enable"
+                ToggleCertificateVisibility(hdlg, selectedIndex == 1);
+                return TRUE;
+            }
             switch (const DWORD cmd = LOWORD(wParam)) {
                 case IDOK: {
                     auto & lpsetupdlg = *(SetupDialogData *)GetWindowLongPtr(hdlg, DWLP_USER);
