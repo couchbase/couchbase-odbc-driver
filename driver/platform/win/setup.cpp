@@ -294,7 +294,7 @@ inline INT_PTR ConfigDlgProc_(
             SET_DLG_ITEM(certificate_file, IDC_CERTIFICATEFILE);
             SET_DLG_ITEM(client_cert, IDC_CLIENT_CERT);
             SET_DLG_ITEM(client_key, IDC_CLIENT_KEY);
-
+            SET_DLG_ITEM(advanced_params, IDC_ADVANCED_PARAMS);
 
 #undef SET_DLG_ITEM
 
@@ -357,6 +357,7 @@ inline INT_PTR ConfigDlgProc_(
                     GET_DLG_ITEM(certificate_file,IDC_CERTIFICATEFILE);
                     GET_DLG_ITEM(client_cert,IDC_CLIENT_CERT);
                     GET_DLG_ITEM(client_key,IDC_CLIENT_KEY);
+                    GET_DLG_ITEM(advanced_params,IDC_ADVANCED_PARAMS);
 
 #undef GET_DLG_ITEM
 

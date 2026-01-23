@@ -33,6 +33,9 @@
 #define IDC_CLIENT_KEY_LABEL    2023
 #define IDC_AUTH_MODE_LABEL     2024
 
+#define IDC_ADVANCED_PARAMS 2030
+#define IDC_ADVANCED_PARAMS_LABEL 2031
+
 #define IDCONTINUE 201
 
 // Next default values for new objects

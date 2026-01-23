@@ -39,6 +39,7 @@ struct ConnInfo {
     std::string auth_mode;
     std::string client_cert;
     std::string client_key;
+    std::string advanced_params;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

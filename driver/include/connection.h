@@ -23,11 +23,12 @@ private:
     std::string url;
     std::string proto;
     std::string password;
-    int port = 0;
     bool verify_connection_early = false;
     std::string sslmode;
     std::string private_key_file;
     std::string certificate_file;
+    std::string client_cert;
+    std::string client_key;
     std::string ca_location;
     std::string path;
     std::string default_format;
@@ -68,6 +69,9 @@ public:
     bool connect_to_capella = false;
     bool collect_logs = false;
     bool two_part_scope_name = false;
+    bool connectInSSLMode = false;
+    std::string auth_mode = "";
+    std::string advanced_params = "";
     std::string scope_part_one;
     std::string scope_part_two;
     lcb_INSTANCE* lcb_instance;
@@ -97,13 +101,13 @@ public:
     std::string handleNativeSql(const std::string& q);
 
     //Build Connection String
-    void build_conn_str_on_prem_ssl(char *);
-    void build_conn_str_capella(char *);
-    void build_conn_str_on_prem_without_ssl(char *);
+    void build_conn_str_on_prem_ssl(std::string&);
+    void build_conn_str_capella(std::string&);
+    void build_conn_str_on_prem_without_ssl(std::string&);
     void check_if_two_part_scope_name();
-    int extractPort(std::string&);
-    void setDefaultPortIfZero(int&, int);
     void redirectCoutToFile(const std::string& filename, std::ofstream& outFile, std::streambuf*& coutBuffer);
+    void logConnectionParams();
+    void appendAdvancedParams(std::stringstream& ss, const std::string& params, bool& hasQuery);
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

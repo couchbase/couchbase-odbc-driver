@@ -108,27 +108,20 @@ void Connection::connect(const std::string & connection_string) {
     resetConfiguration();
     setConfiguration(cs_fields, dsn_fields);
 
-    LOG("Creating session with " << proto << "://" << server << ":" << port << ", DB: " << catalog);
-    const char * cb_username = username.c_str();
-    const char * cb_password = password.c_str();
-    char conn_str[1024];
-    bool connectInSSLMode = isYes(sslmode);
-    port = extractPort(server);
+    LOG("Creating session with " << proto << "://" << server << ":" << ", DB: " << catalog);
+    const char * cb_username = nullptr;
+    const char * cb_password = nullptr;
+    std::string conn_str;
+    connectInSSLMode = isYes(sslmode);
 
-    auto now = std::chrono::system_clock::now();
-    // Convert to time_t for human-readable format
-    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-    std::cout<<"\nLOG: Logs collected at: " << std::put_time(std::gmtime(&now_time), "%Y-%m-%d %H:%M:%S");
-
-    std::cout<<"\nLOG: log_file is :-> "<<log_file;
-    std::cout<<"\nLOG: username is :-> "<<username;
-    std::cout<<"\nLOG: sslmode is :-> "<<sslmode;
-    std::cout<<"\nLOG: Connection String is :-> "<<url;
-    std::cout<<"\nLOG: Host is :-> "<<server;
-    std::cout<<"\nLOG: Scope/Database is :-> "<<catalog;
-    std::cout<<"\nLOG: connectInSSLMode is :-> "<<connectInSSLMode;
-    std::cout<<"\nLOG: connect_to_capella is :-> "<<connect_to_capella;
-    std::cout<<"\nLOG: collect logs is:  :-> "<<collect_logs;
+    if (Poco::UTF8::icompare(auth_mode, "certificate") == 0) {
+        // For Client Cert, username/password are NOT used
+        cb_username = "";
+        cb_password = "";
+    } else {
+        cb_username = username.c_str();
+        cb_password = password.c_str();
+    }
 
     #ifdef _WIN32
         if(collect_logs){
@@ -139,21 +132,19 @@ void Connection::connect(const std::string & connection_string) {
         }
     #endif
 
+    logConnectionParams();
+
     if(connect_to_capella){
         //Always in SSL Mode, uses public certificate.
         build_conn_str_capella(conn_str);
     }
     else if(!connect_to_capella) {
         if(connectInSSLMode){
-            setDefaultPortIfZero(port, DEFAULT_PRODUCTION_SSL_PORT);
             std::cout<<"\nLOG: Inside connectInSSLMode";
-            std::cout<<"\nLOG: port is :-> "<<port;
             build_conn_str_on_prem_ssl(conn_str);
         }
         else {
-            setDefaultPortIfZero(port, DEFAULT_PRODUCTION_PORT);
             std::cout<<"\nLOG: Inside !connectInSSLMode";
-            std::cout<<"\nLOG: port is :-> "<<port;
             build_conn_str_on_prem_without_ssl(conn_str);
         }
     }
@@ -163,7 +154,7 @@ void Connection::connect(const std::string & connection_string) {
 
     lcb_CREATEOPTS * lcb_create_options = NULL;
     lcb_createopts_create(&lcb_create_options, LCB_TYPE_CLUSTER);
-    lcb_createopts_connstr(lcb_create_options, conn_str, strlen(conn_str));
+    lcb_createopts_connstr(lcb_create_options, conn_str.c_str(), conn_str.length());
     lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
     try {
         cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
@@ -185,6 +176,29 @@ void Connection::connect(const std::string & connection_string) {
     check_if_two_part_scope_name();
 }
 
+void Connection::logConnectionParams() {
+    auto now = std::chrono::system_clock::now();
+    // Convert to time_t for human-readable format
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+
+    std::cout << "\nLOG: Logs collected at: " << std::put_time(std::gmtime(&now_time), "%Y-%m-%d %H:%M:%S");
+    std::cout << "\nLOG: log_file is :-> " << log_file;
+    std::cout << "\nLOG: username is :-> " << username;
+    std::cout << "\nLOG: password length is :-> " << password.length();
+    std::cout << "\nLOG: sslmode is :-> " << sslmode;
+    std::cout << "\nLOG: Connection String (URL) is :-> " << url;
+    std::cout << "\nLOG: Host is :-> " << server;
+    std::cout << "\nLOG: Scope/Database is :-> " << catalog;
+    std::cout << "\nLOG: connectInSSLMode is :-> " << connectInSSLMode;
+    std::cout << "\nLOG: connect_to_capella is :-> " << connect_to_capella;
+    std::cout << "\nLOG: collect_logs path is :-> " << collect_logs;
+    std::cout << "\nLOG: auth_mode is :-> " << auth_mode;
+    std::cout << "\nLOG: client_cert path is :-> " << client_cert;
+    std::cout << "\nLOG: client_key path is :-> " << client_key;
+    std::cout << "\nLOG: advanced_params is :-> " << advanced_params;
+    std::cout << "\nLOG: certificate_file path is :-> " << certificate_file;
+}
+
 void Connection::resetConfiguration() {
     dsn.clear();
     url.clear();
@@ -192,7 +206,6 @@ void Connection::resetConfiguration() {
     username.clear();
     password.clear();
     server.clear();
-    port = 0;
     connection_timeout = 0;
     timeout = 0;
     query_timeout = 0;
@@ -206,6 +219,10 @@ void Connection::resetConfiguration() {
     browse_result.clear();
     browse_connect_step = 0;
     string_max_length = 0;
+    advanced_params.clear();
+    auth_mode.clear();
+    client_cert.clear();
+    client_key.clear();
 }
 
 void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_value_map_t & dsn_fields) {
@@ -388,6 +405,35 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = (value.empty() || isYesOrNo(value));
             if (valid_value) {
                 getDriver().setAttr(CH_SQL_ATTR_DRIVERLOG, (isYes(value) ? SQL_OPT_TRACE_ON : SQL_OPT_TRACE_OFF));
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_ADVANCED_PARAMS) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                advanced_params = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_AUTH_MODE) == 0) {
+            recognized_key = true;
+            valid_value = (Poco::UTF8::icompare(value, INI_AUTH_MODE_BASIC) == 0 ||
+                           Poco::UTF8::icompare(value, INI_AUTH_MODE_CERT) == 0);
+            if (valid_value) {
+                auth_mode = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_CLIENT_CERT) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                client_cert = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_CLIENT_KEY) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                client_key = value;
             }
         }
 
@@ -614,50 +660,81 @@ std::string Connection::handleNativeSql(const std::string & q) {
     return query;
 }
 
-void Connection::build_conn_str_on_prem_ssl(char *conn_str) {
-    //couchbases://Host:port?truststorepath=path/to/certificate_file
-    std::cout<<"\nLOG: log_file is :-> "<<log_file;
-    if(collect_logs){
-        if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s&console_log_level=%hu&console_log_file=%s",server.c_str(),port,certificate_file.c_str(), log_level, log_file.c_str())>=1024){
-        std::cout << "Insufficient conn_str buffer space\n";
-        }
+void Connection::build_conn_str_on_prem_ssl(std::string& conn_str) {
+    std::stringstream ss;
+    ss << "couchbases://" << server << "?truststorepath=" << certificate_file;
+
+    if (Poco::UTF8::icompare(auth_mode, "certificate") == 0) {
+        ss << "&certpath=" << client_cert;
+        ss << "&keypath=" << client_key;
     }
-    else{
-        if(sprintf(conn_str, "couchbases://%s:%hu?truststorepath=%s",server.c_str(),port,certificate_file.c_str())>=1024){
-        std::cout << "Insufficient conn_str buffer space\n";
-        }
+    bool hasQuery = true; // we already have ?truststorepath
+    appendAdvancedParams(ss, advanced_params, hasQuery);
+
+    if (collect_logs && !log_file.empty()) {
+        ss << "&console_log_level=" << log_level
+           << "&console_log_file=" << log_file;
     }
-    std::cout<<"\nLOG: Inside build_conn_str_on_prem_ssl is :-> "<<conn_str;
+
+    conn_str = ss.str();
+    std::cout << "\nLOG: Connection String: " << conn_str;
 }
 
-void Connection::build_conn_str_capella(char *conn_str){
-    //Connection String
-    if(collect_logs){
-        if(sprintf(conn_str, "%s?console_log_level=%hu&console_log_file=%s",url.c_str(), log_level, log_file.c_str())>=1024){
-            std::cout << "Insufficient conn_str buffer space\n";
-        }
+void Connection::build_conn_str_capella(std::string& conn_str) {
+    std::stringstream ss;
+    ss << url;
+
+    if (collect_logs && !log_file.empty()) {
+        ss << "?console_log_level=" << log_level
+           << "&console_log_file=" << log_file;
     }
-    else {
-        if(sprintf(conn_str, "%s",url.c_str())>=1024){
-            std::cout << "Insufficient conn_str buffer space\n";
-        }
-    }
-    std::cout<<"\nLOG: Inside build_conn_str_capella WIN32 is :-> "<<conn_str;
+
+    conn_str = ss.str();
+    std::cout << "\nLOG: Inside build_conn_str_capella WIN32 is :-> " << conn_str;
 }
 
-void Connection::build_conn_str_on_prem_without_ssl(char *conn_str){
-     //couchbase://Host:portcls
-    if(collect_logs){
-        if (sprintf(conn_str, "couchbase://%s:%hu?console_log_level=%hu&console_log_file=%s", server.c_str(), port, log_level, log_file.c_str()) >= 1024) {
-        std::cout << "Insufficient conn_str buffer space\n";
+void Connection::build_conn_str_on_prem_without_ssl(std::string& conn_str) {
+    std::stringstream ss;
+    // couchbase://Host
+    ss << "couchbase://" << server;
+
+    bool hasQuery = false;
+    appendAdvancedParams(ss, advanced_params, hasQuery);
+
+    if (collect_logs && !log_file.empty()) {
+        ss << "?console_log_level=" << log_level
+           << "&console_log_file=" << log_file;
+    }
+
+    conn_str = ss.str();
+    std::cout << "\nLOG: Non-SSL Connection String: " << conn_str;
+}
+
+void Connection::appendAdvancedParams(std::stringstream& ss, const std::string& params, bool& hasQuery) {
+    if (params.empty()) return;
+
+    std::stringstream pss(params);
+    std::string line;
+
+    while (std::getline(pss, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        size_t eqPos = line.find('=');
+        if (eqPos != std::string::npos) {
+            std::string key = line.substr(0, eqPos);
+            std::string val = line.substr(eqPos + 1);
+
+            Poco::trimInPlace(key);
+            Poco::trimInPlace(val);
+
+            if (!key.empty()) {
+                ss << (hasQuery ? "&" : "?") << key << "=" << val;
+                hasQuery = true;
+            }
         }
     }
-    else {
-        if (sprintf(conn_str, "couchbase://%s:%hu", server.c_str(), port) >= 1024) {
-        std::cout << "Insufficient conn_str buffer space\n";
-        }
-    }
-    std::cout<<"\nLOG: Inside build_conn_str_on_prem_without_ssl :-> "<<conn_str;
 }
 
 void Connection::check_if_two_part_scope_name(){
@@ -668,35 +745,6 @@ void Connection::check_if_two_part_scope_name(){
         // Extract substrings before and after the forward slash
         scope_part_one = catalog.substr(0, slashPosition);
         scope_part_two = catalog.substr(slashPosition + 1);
-    }
-}
-
-int Connection::extractPort(std::string& server) {
-    // Find the position of the colon
-    size_t colonPos = server.find(':');
-    if (colonPos == std::string::npos) {
-        return 0;
-    }
-
-    // Extract the substring after the colon
-    std::string portStr = server.substr(colonPos + 1);
-
-    // Check if the extracted part is a valid integer
-    std::istringstream iss(portStr);
-    int portValue;
-    if (!(iss >> portValue) || !iss.eof()) {
-        throw std::invalid_argument("Invalid format: port is not an integer");
-    }
-
-    server = server.substr(0, colonPos);
-    return portValue;
-}
-
-void Connection::setDefaultPortIfZero(int& port, int productionPort){
-    std::cout<<" \nLOG: setDefaultPortIfZero "<<port<<" "<<productionPort;
-    if(port == 0){
-        port = productionPort;
-        std::cout<<"\nLOG: port=productionPort ->"<<port;
     }
 }
 
