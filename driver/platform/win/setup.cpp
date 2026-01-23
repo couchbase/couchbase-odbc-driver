@@ -217,6 +217,27 @@ void ToggleCertificateVisibility(HWND hdlg, bool show) {
     ShowWindow(GetDlgItem(hdlg, IDC_CERTIFICATEFILE), cmdShow);
 }
 
+void UpdateAuthVisibility(HWND hdlg, int authMode) {
+    // authMode: 0 = Basic/LDAP, 1 = Client Cert
+
+    bool showBasic = (authMode == 0);
+    bool showCert  = (authMode == 1);
+    int  basicCmd  = showBasic ? SW_SHOW : SW_HIDE;
+    int  certCmd   = showCert  ? SW_SHOW : SW_HIDE;
+
+    // Toggle Basic Auth Fields
+    ShowWindow(GetDlgItem(hdlg, IDC_USER), basicCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_USER_LABEL), basicCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_PASSWORD), basicCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_PASSWORD_LABEL), basicCmd);
+
+    // Toggle Client Cert Fields
+    ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_CERT), certCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_CERT_LABEL), certCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY), certCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_LABEL), certCmd);
+}
+
 inline INT_PTR ConfigDlgProc_(
     HWND hdlg,
     UINT wMsg,
@@ -243,6 +264,18 @@ inline INT_PTR ConfigDlgProc_(
             // [CALL 1] Set initial visibility based on loaded config
             ToggleCertificateVisibility(hdlg, sslEnabled);
 
+            // Setup Auth Dropdown
+            HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Basic / LDAP")); // Index 0
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate")); // Index 1
+
+            // Determine initial selection based on config
+            // (You'll need to add 'auth_mode' or similar to your ConnInfo struct)
+            int initialAuth = (Poco::UTF8::icompare(ci.auth_mode, "certificate") == 0) ? 1 : 0;
+            SendMessage(hAuth, CB_SETCURSEL, initialAuth, 0);
+
+            UpdateAuthVisibility(hdlg, initialAuth);
+
 #define SET_DLG_ITEM(NAME, ID)                                    \
     {                                                             \
         value.clear();                                            \
@@ -259,6 +292,9 @@ inline INT_PTR ConfigDlgProc_(
             SET_DLG_ITEM(password, IDC_PASSWORD);
             SET_DLG_ITEM(sslmode, IDC_SSLMODE);
             SET_DLG_ITEM(certificate_file, IDC_CERTIFICATEFILE);
+            SET_DLG_ITEM(client_cert, IDC_CLIENT_CERT);
+            SET_DLG_ITEM(client_key, IDC_CLIENT_KEY);
+
 
 #undef SET_DLG_ITEM
 
@@ -275,6 +311,14 @@ inline INT_PTR ConfigDlgProc_(
                 return TRUE;
             }
             switch (const DWORD cmd = LOWORD(wParam)) {
+                case IDC_AUTH_MODE: {
+                    if (HIWORD(wParam) == CBN_SELCHANGE) {
+                        HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
+                        int idx = SendMessage(hAuth, CB_GETCURSEL, 0, 0);
+                        UpdateAuthVisibility(hdlg, idx);
+                    }
+                    break;
+                }
                 case IDOK: {
                     auto & lpsetupdlg = *(SetupDialogData *)GetWindowLongPtr(hdlg, DWLP_USER);
                     auto & ci = lpsetupdlg.ci;
@@ -286,6 +330,11 @@ inline INT_PTR ConfigDlgProc_(
                     } else {
                         ci.sslmode = "0"; // or "no"
                     }
+
+                    // Save Auth Mode
+                    HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
+                    int authIdx = SendMessage(hAuth, CB_GETCURSEL, 0, 0);
+                    ci.auth_mode = (authIdx == 1) ? "certificate" : "basic";
 
                     std::basic_string<CharTypeLPCTSTR> value;
 
@@ -306,6 +355,8 @@ inline INT_PTR ConfigDlgProc_(
                     GET_DLG_ITEM(username, IDC_USER);
                     GET_DLG_ITEM(password, IDC_PASSWORD);
                     GET_DLG_ITEM(certificate_file,IDC_CERTIFICATEFILE);
+                    GET_DLG_ITEM(client_cert,IDC_CLIENT_CERT);
+                    GET_DLG_ITEM(client_key,IDC_CLIENT_KEY);
 
 #undef GET_DLG_ITEM
 

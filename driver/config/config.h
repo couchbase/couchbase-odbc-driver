@@ -36,6 +36,9 @@ struct ConnInfo {
     std::string driver_log_file;
     std::string connect_to_capella;
     std::string collect_logs;
+    std::string auth_mode;
+    std::string client_cert;
+    std::string client_key;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

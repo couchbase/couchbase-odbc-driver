@@ -63,6 +63,9 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
     GET_CONFIG(certificate_file, INI_CERTIFICATEFILE, INI_CERTIFICATEFILE_DEFAULT);
     GET_CONFIG(connect_to_capella, INI_CONNECT_TO_CAPELLA, INI_CONNECT_TO_CAPELLA_DEFAULT);
     GET_CONFIG(collect_logs, INI_COLLECT_LOG, INI_COLLECT_LOG_DEFAULT);
+    GET_CONFIG(auth_mode,   INI_AUTH_MODE,   INI_AUTH_MODE_DEFAULT);
+    GET_CONFIG(client_cert, INI_CLIENT_CERT, INI_CLIENT_CERT_DEFAULT);
+    GET_CONFIG(client_key,  INI_CLIENT_KEY,  INI_CLIENT_KEY_DEFAULT);
 
 #undef GET_CONFIG
 }
@@ -109,6 +112,9 @@ void writeDSNinfo(const ConnInfo * ci) {
     WRITE_CONFIG(certificate_file,  INI_CERTIFICATEFILE);
     WRITE_CONFIG(connect_to_capella,  INI_CONNECT_TO_CAPELLA);
     WRITE_CONFIG(collect_logs, INI_COLLECT_LOG);
+    WRITE_CONFIG(auth_mode,   INI_AUTH_MODE);
+    WRITE_CONFIG(client_cert, INI_CLIENT_CERT);
+    WRITE_CONFIG(client_key,  INI_CLIENT_KEY);
 
 #undef WRITE_CONFIG
 }

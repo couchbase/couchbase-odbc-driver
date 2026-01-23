@@ -36,6 +36,9 @@
 #define INI_CERTIFICATEFILE_DEFAULT ""
 #define INI_CONNECT_TO_CAPELLA   "ConnectToCapella"
 #define INI_COLLECT_LOG   "CollectLogs"         /*libcouchbase debug logs*/
+#define INI_AUTH_MODE       "AuthMode"
+#define INI_CLIENT_CERT     "ClientCert"
+#define INI_CLIENT_KEY      "ClientKey"
 
 #if defined(UNICODE)
 #   define INI_DSN_DEFAULT          DSN_DEFAULT_UNICODE
@@ -59,6 +62,9 @@
 #define INI_STRINGMAXLENGTH_DEFAULT "1048575"
 #define INI_CONNECT_TO_CAPELLA_DEFAULT ""
 #define INI_COLLECT_LOG_DEFAULT ""
+#define INI_AUTH_MODE_DEFAULT   "basic"
+#define INI_CLIENT_CERT_DEFAULT ""
+#define INI_CLIENT_KEY_DEFAULT  ""
 
 #ifdef NDEBUG
 #    define INI_DRIVERLOG_DEFAULT "off"

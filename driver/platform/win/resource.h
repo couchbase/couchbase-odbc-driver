@@ -23,6 +23,16 @@
 #define IDC_CHECKBOX_3 2003
 #define IDC_CERTIFICATEFILE_LABEL 2004
 
+#define IDC_AUTH_MODE 2010
+#define IDC_CLIENT_CERT 2011
+#define IDC_CLIENT_KEY 2012
+
+#define IDC_USER_LABEL          2020
+#define IDC_PASSWORD_LABEL      2021
+#define IDC_CLIENT_CERT_LABEL   2022
+#define IDC_CLIENT_KEY_LABEL    2023
+#define IDC_AUTH_MODE_LABEL     2024
+
 #define IDCONTINUE 201
 
 // Next default values for new objects
