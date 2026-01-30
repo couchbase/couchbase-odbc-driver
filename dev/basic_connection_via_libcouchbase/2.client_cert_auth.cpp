@@ -1,4 +1,4 @@
-//This is a simple progran that connects to couchbase analytics/ enterprise analytics WITH client cert auth
+//This is a simple program that connects to couchbase analytics/ enterprise analytics WITH client cert auth
 #include <libcouchbase/couchbase.h>
 #include <iostream>
 #include <string>
@@ -26,9 +26,15 @@ int main() {
     // note the port '11307' is the KV Port configured using alternate address for 9091 mgmt port
     // 11207 can be used for 8091 mgmt port
     // 11998 for the 9000 mgmt port
-    std::string conn_str =
-            "couchbases://localhost:11307?truststorepath=/Users/janhavi.tripurwar/Desktop/test/server_ca.pem&certpath=/Users/janhavi.tripurwar/Desktop/test/user.pem&keypath=/Users/janhavi.tripurwar/Desktop/test/user.key";
+    // std::string conn_str =
+    //         "couchbases://localhost:11307?truststorepath=/Users/janhavi.tripurwar/Desktop/test/server_ca.pem&certpath=/Users/janhavi.tripurwar/Desktop/test/user.pem&keypath=/Users/janhavi.tripurwar/Desktop/test/user.key";
 
+    // This connection string is for the following setup
+    // EA/operational running on aws -> Aws NLB (internet facing)
+    // NLB has exposed ports (18091, 18095), no KV port (11207) exposed
+    // mgmtSSL and cbasSSl (18091, 18095) ports addred in alternate address also
+    // config_node_timeout=10000000 is required beacuse LCB_ERROR_TIMEOUT was coming
+    std::string conn_str = "couchbases://ea-nlb-9311f41fc97dec77.elb.ap-southeast-2.amazonaws.com:18091=http?truststorepath=/Users/janhavi.tripurwar/Desktop/test/server_ca.pem&certpath=/Users/janhavi.tripurwar/Desktop/test/user.pem&keypath=/Users/janhavi.tripurwar/Desktop/test/user.key&network=external&config_node_timeout=10000000";
 
     // PRINTING THE CONNECTION STRING
     std::cout << "------------------------------------------------" << std::endl;
