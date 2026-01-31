@@ -10,6 +10,7 @@
 #include <Poco/UTF8String.h>
 
 #include <odbcinst.h>
+#include <Commctrl.h>
 
 #include <algorithm>
 
@@ -40,6 +41,7 @@ struct SetupDialogData {
     std::string dsn;         /// Original data source name
     bool is_new_dsn;         /// New data source flag
     bool is_default;         /// Default data source flag
+    int source_type;         // 0: Unknown, 1: Capella Ops, 2: Capella Analytics, 3: CB Server, 4: Ent Analytics
     ConnInfo ci;
 
      // Member function to get LPARAM
@@ -47,6 +49,41 @@ struct SetupDialogData {
         return reinterpret_cast<LPARAM>(const_cast<SetupDialogData*>(this));
     }
 };
+
+void ConfigureScopeUI(HWND hdlg, int sourceType, const std::string& catalog) {
+    // sourceType:
+    // 1: Capella Ops (Scope only)
+    // 2: Capella Analytics (Database + Optional Scope)
+    // 3: CB Server (Scope only)
+    // 4: Ent Analytics (Database + Optional Scope)
+
+    bool isDatabaseMode = (sourceType == 2 || sourceType == 4);
+
+    if (isDatabaseMode) {
+        SetDlgItemText(hdlg, IDC_CATALOG_LABEL, TEXT("Database:"));
+        ShowWindow(GetDlgItem(hdlg, IDC_SCOPE), SW_SHOW);
+        ShowWindow(GetDlgItem(hdlg, IDC_SCOPE_LABEL), SW_SHOW);
+
+        // Split catalog if needed
+        size_t slashPos = catalog.find('/');
+        if (slashPos != std::string::npos) {
+            std::string db = catalog.substr(0, slashPos);
+            std::string scope = catalog.substr(slashPos + 1);
+
+            std::basic_string<CharTypeLPCTSTR> val;
+            fromUTF8(db, val);
+            SetDlgItemText(hdlg, IDC_CATALOG, val.c_str());
+
+            fromUTF8(scope, val);
+            SetDlgItemText(hdlg, IDC_SCOPE, val.c_str());
+        }
+        Edit_SetCueBannerText(GetDlgItem(hdlg, IDC_SCOPE), L"Optional");
+    } else {
+        SetDlgItemText(hdlg, IDC_CATALOG_LABEL, TEXT("Scope:"));
+        ShowWindow(GetDlgItem(hdlg, IDC_SCOPE), SW_HIDE);
+        ShowWindow(GetDlgItem(hdlg, IDC_SCOPE_LABEL), SW_HIDE);
+    }
+}
 
 inline BOOL copyAttributes(ConnInfo * ci, LPCTSTR attribute, LPCTSTR value) {
     const auto attribute_str = toUTF8(attribute);
@@ -57,21 +94,23 @@ inline BOOL copyAttributes(ConnInfo * ci, LPCTSTR attribute, LPCTSTR value) {
         return TRUE;                                          \
     }
 
-    COPY_ATTR_IF(drivername, INI_DRIVER);
-    COPY_ATTR_IF(dsn,        INI_DSN);
-    COPY_ATTR_IF(desc,       INI_DESC);
-    COPY_ATTR_IF(url,        INI_URL);
-    COPY_ATTR_IF(server,     INI_SERVER);
-    COPY_ATTR_IF(username,   INI_USERNAME);
-    COPY_ATTR_IF(username,   INI_UID);
-    COPY_ATTR_IF(password,   INI_PASSWORD);
-    COPY_ATTR_IF(password,   INI_PWD);
-    COPY_ATTR_IF(timeout,    INI_TIMEOUT);
-    COPY_ATTR_IF(sslmode,    INI_SSLMODE);
-    COPY_ATTR_IF(catalog,     INI_CATALOG);
-    COPY_ATTR_IF(sid, INI_SOURCE_ID);
-    COPY_ATTR_IF(login_timeout, INI_LOGIN_TIMEOUT);
-    COPY_ATTR_IF(query_timeout, INI_QUERY_TIMEOUT);
+    COPY_ATTR_IF(drivername,            INI_DRIVER);
+    COPY_ATTR_IF(dsn,                   INI_DSN);
+    COPY_ATTR_IF(desc,                  INI_DESC);
+    COPY_ATTR_IF(url,                   INI_URL);
+    COPY_ATTR_IF(server,                INI_SERVER);
+    COPY_ATTR_IF(username,              INI_USERNAME);
+    COPY_ATTR_IF(username,              INI_UID);
+    COPY_ATTR_IF(password,              INI_PASSWORD);
+    COPY_ATTR_IF(password,              INI_PWD);
+    COPY_ATTR_IF(timeout,               INI_TIMEOUT);
+    COPY_ATTR_IF(sslmode,               INI_SSLMODE);
+    COPY_ATTR_IF(client_key_password,   INI_CLIENT_KEY_PASSWORD);
+    COPY_ATTR_IF(database,              INI_DATABASE);
+    COPY_ATTR_IF(scope,                 INI_SCOPE);
+    COPY_ATTR_IF(sid,                   INI_SOURCE_ID);
+    COPY_ATTR_IF(login_timeout,         INI_LOGIN_TIMEOUT);
+    COPY_ATTR_IF(query_timeout,         INI_QUERY_TIMEOUT);
 
 #undef COPY_ATTR_IF
 
@@ -218,24 +257,35 @@ void ToggleCertificateVisibility(HWND hdlg, bool show) {
 }
 
 void UpdateAuthVisibility(HWND hdlg, int authMode) {
-    // authMode: 0 = Basic/LDAP, 1 = Client Cert
+    // authMode:
+    // 0 = Basic
+    // 1 = LDAP
+    // 2 = Client Cert
+    // 3 = Client Cert + Encrypted Key
 
-    bool showBasic = (authMode == 0);
-    bool showCert  = (authMode == 1);
-    int  basicCmd  = showBasic ? SW_SHOW : SW_HIDE;
-    int  certCmd   = showCert  ? SW_SHOW : SW_HIDE;
+    bool showBasic = (authMode == 0 || authMode == 1);
+    bool showCert  = (authMode == 2 || authMode == 3);
+    bool showPass  = (authMode == 3);
 
-    // Toggle Basic Auth Fields
+    int basicCmd = showBasic ? SW_SHOW : SW_HIDE;
+    int certCmd  = showCert  ? SW_SHOW : SW_HIDE;
+    int passCmd  = showPass  ? SW_SHOW : SW_HIDE;
+
+    // Basic Auth Fields
     ShowWindow(GetDlgItem(hdlg, IDC_USER), basicCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_USER_LABEL), basicCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_PASSWORD), basicCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_PASSWORD_LABEL), basicCmd);
 
-    // Toggle Client Cert Fields
+    // Client Cert Fields
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_CERT), certCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_CERT_LABEL), certCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY), certCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_LABEL), certCmd);
+
+    // Encrypted Key Password Field
+    ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD), passCmd);
+    ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD_LABEL), passCmd);
 }
 
 inline INT_PTR ConfigDlgProc_(
@@ -264,14 +314,25 @@ inline INT_PTR ConfigDlgProc_(
             // [CALL 1] Set initial visibility based on loaded config
             ToggleCertificateVisibility(hdlg, sslEnabled);
 
+
             // Setup Auth Dropdown
             HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
-            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Basic / LDAP")); // Index 0
-            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate")); // Index 1
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Basic")); // Index 0
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("LDAP")); // Index 1
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate")); // Index 2
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate (Encrypted Key)")); // Index 3
 
             // Determine initial selection based on config
-            // (You'll need to add 'auth_mode' or similar to your ConnInfo struct)
-            int initialAuth = (Poco::UTF8::icompare(ci.auth_mode, "certificate") == 0) ? 1 : 0;
+            int initialAuth = 0;
+            if (Poco::UTF8::icompare(ci.auth_mode, "certificate") == 0) {
+                if (!ci.client_key_password.empty()) {
+                    initialAuth = 3;
+                } else {
+                    initialAuth = 2;
+                }
+            } else if (Poco::UTF8::icompare(ci.auth_mode, "ldap") == 0) {
+                initialAuth = 1;
+            }
             SendMessage(hAuth, CB_SETCURSEL, initialAuth, 0);
 
             UpdateAuthVisibility(hdlg, initialAuth);
@@ -283,22 +344,50 @@ inline INT_PTR ConfigDlgProc_(
         const auto res = SetDlgItemText(hdlg, ID, value.c_str()); \
     }
 
-            SET_DLG_ITEM(dsn, IDC_DSN_NAME);
-            SET_DLG_ITEM(desc, IDC_DESCRIPTION);
-            SET_DLG_ITEM(url, IDC_URL);
-            SET_DLG_ITEM(server, IDC_SERVER_HOST);
-            SET_DLG_ITEM(catalog, IDC_CATALOG);
-            SET_DLG_ITEM(username, IDC_USER);
-            SET_DLG_ITEM(password, IDC_PASSWORD);
-            SET_DLG_ITEM(sslmode, IDC_SSLMODE);
-            SET_DLG_ITEM(certificate_file, IDC_CERTIFICATEFILE);
-            SET_DLG_ITEM(client_cert, IDC_CLIENT_CERT);
-            SET_DLG_ITEM(client_key, IDC_CLIENT_KEY);
-            SET_DLG_ITEM(advanced_params, IDC_ADVANCED_PARAMS);
+            SET_DLG_ITEM(dsn,                   IDC_DSN_NAME);
+            SET_DLG_ITEM(desc,                  IDC_DESCRIPTION);
+            SET_DLG_ITEM(url,                   IDC_URL);
+            SET_DLG_ITEM(server,                IDC_SERVER_Address);
+            SET_DLG_ITEM(username,              IDC_USER);
+            SET_DLG_ITEM(password,              IDC_PASSWORD);
+            SET_DLG_ITEM(sslmode,               IDC_SSLMODE);
+            SET_DLG_ITEM(certificate_file,      IDC_CERTIFICATEFILE);
+            SET_DLG_ITEM(client_cert,           IDC_CLIENT_CERT);
+            SET_DLG_ITEM(client_key,            IDC_CLIENT_KEY);
+            SET_DLG_ITEM(advanced_params,       IDC_ADVANCED_PARAMS);
+            SET_DLG_ITEM(client_key_password,   IDC_CLIENT_KEY_PASSWORD);
 
 #undef SET_DLG_ITEM
 
-            return TRUE; /* Focus was not set */
+            bool isDatabaseMode = (lpsetupdlg.source_type == 2 || lpsetupdlg.source_type == 4);
+            if (isDatabaseMode) {
+                SetDlgItemText(hdlg, IDC_CATALOG_LABEL, TEXT("Database:"));
+                ShowWindow(GetDlgItem(hdlg, IDC_SCOPE), SW_SHOW);
+                ShowWindow(GetDlgItem(hdlg, IDC_SCOPE_LABEL), SW_SHOW);
+
+                std::basic_string<CharTypeLPCTSTR> val;
+                fromUTF8(ci.database, val);
+                SetDlgItemText(hdlg, IDC_CATALOG, val.c_str());
+
+                fromUTF8(ci.scope, val);
+                SetDlgItemText(hdlg, IDC_SCOPE, val.c_str());
+
+                Edit_SetCueBannerText(GetDlgItem(hdlg, IDC_SCOPE), L"Optional");
+            } else {
+                SetDlgItemText(hdlg, IDC_CATALOG_LABEL, TEXT("Scope:"));
+                ShowWindow(GetDlgItem(hdlg, IDC_SCOPE), SW_HIDE);
+                ShowWindow(GetDlgItem(hdlg, IDC_SCOPE_LABEL), SW_HIDE);
+
+                std::basic_string<CharTypeLPCTSTR> val;
+                fromUTF8(ci.scope, val);
+                SetDlgItemText(hdlg, IDC_CATALOG, val.c_str());
+            }
+
+            LPCWSTR placeholder = L"<n/a for Power BI>";
+            Edit_SetCueBannerText(GetDlgItem(hdlg, IDC_USER), placeholder);
+            Edit_SetCueBannerText(GetDlgItem(hdlg, IDC_PASSWORD), placeholder);
+            Edit_SetCueBannerText(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD), placeholder);
+            return TRUE;
         }
 
         case WM_COMMAND: {
@@ -334,7 +423,13 @@ inline INT_PTR ConfigDlgProc_(
                     // Save Auth Mode
                     HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
                     int authIdx = SendMessage(hAuth, CB_GETCURSEL, 0, 0);
-                    ci.auth_mode = (authIdx == 1) ? "certificate" : "basic";
+                    if (authIdx == 2 || authIdx == 3) {
+                        ci.auth_mode = "certificate";
+                    } else if (authIdx == 1) {
+                        ci.auth_mode = "ldap";
+                    } else {
+                        ci.auth_mode = "basic";
+                    }
 
                     std::basic_string<CharTypeLPCTSTR> value;
 
@@ -347,19 +442,44 @@ inline INT_PTR ConfigDlgProc_(
         ci.NAME = toUTF8(value);                                                 \
     }
 
-                    GET_DLG_ITEM(dsn, IDC_DSN_NAME);
-                    GET_DLG_ITEM(desc, IDC_DESCRIPTION);
-                    GET_DLG_ITEM(url, IDC_URL);
-                    GET_DLG_ITEM(server, IDC_SERVER_HOST);
-                    GET_DLG_ITEM(catalog, IDC_CATALOG);
-                    GET_DLG_ITEM(username, IDC_USER);
-                    GET_DLG_ITEM(password, IDC_PASSWORD);
-                    GET_DLG_ITEM(certificate_file,IDC_CERTIFICATEFILE);
-                    GET_DLG_ITEM(client_cert,IDC_CLIENT_CERT);
-                    GET_DLG_ITEM(client_key,IDC_CLIENT_KEY);
-                    GET_DLG_ITEM(advanced_params,IDC_ADVANCED_PARAMS);
+                    GET_DLG_ITEM(dsn,                   IDC_DSN_NAME);
+                    GET_DLG_ITEM(desc,                  IDC_DESCRIPTION);
+                    GET_DLG_ITEM(url,                   IDC_URL);
+                    GET_DLG_ITEM(server,                IDC_SERVER_Address);
+                    GET_DLG_ITEM(username,              IDC_USER);
+                    GET_DLG_ITEM(password,              IDC_PASSWORD);
+                    GET_DLG_ITEM(certificate_file,      IDC_CERTIFICATEFILE);
+                    GET_DLG_ITEM(client_cert,           IDC_CLIENT_CERT);
+                    GET_DLG_ITEM(client_key,            IDC_CLIENT_KEY);
+                    GET_DLG_ITEM(advanced_params,       IDC_ADVANCED_PARAMS);
+                    GET_DLG_ITEM(client_key_password,   IDC_CLIENT_KEY_PASSWORD);
 
 #undef GET_DLG_ITEM
+
+                    // Handle Scope/Database saving
+                    ci.database.clear(); // Clear legacy database
+                    ci.scope.clear();
+
+                    std::basic_string<CharTypeLPCTSTR> catalog_val;
+                    catalog_val.resize(MAX_DSN_VALUE_LEN);
+                    auto read = GetDlgItemText(hdlg, IDC_CATALOG, const_cast<CharTypeLPCTSTR *>(catalog_val.data()), catalog_val.size());
+                    catalog_val.resize((read <= 0 || read > catalog_val.size()) ? 0 : read);
+                    std::string catalog_str = toUTF8(catalog_val);
+
+                    if (lpsetupdlg.source_type == 2 || lpsetupdlg.source_type == 4) {
+                         // Database Mode
+                         ci.database = catalog_str;
+
+                         std::basic_string<CharTypeLPCTSTR> scope_val;
+                         scope_val.resize(MAX_DSN_VALUE_LEN);
+                         read = GetDlgItemText(hdlg, IDC_SCOPE, const_cast<CharTypeLPCTSTR *>(scope_val.data()), scope_val.size());
+                         scope_val.resize((read <= 0 || read > scope_val.size()) ? 0 : read);
+                         ci.scope = toUTF8(scope_val);
+                    } else {
+                         // Scope Only Mode
+                         ci.scope = catalog_str;
+                         ci.database.clear();
+                    }
 
                     /* Return to caller */
                 }
@@ -380,26 +500,33 @@ inline INT_PTR ConfigDlgProc_(
         ci.NAME = (isChecked == BST_CHECKED) ? TRUE_VALUE : FALSE_VALUE;          \
     }
 
-                    bool capella_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_1) == BST_CHECKED;
-                    bool couchbase_server_checked = IsDlgButtonChecked(hdlg, IDC_CHECKBOX_2) == BST_CHECKED;
-                    int MAKEINTRESOURCE_VALUE;
+                    bool capella_ops = IsDlgButtonChecked(hdlg, IDC_RADIO_CAPELLA_OPS) == BST_CHECKED;
+                    bool capella_analytics = IsDlgButtonChecked(hdlg, IDC_RADIO_CAPELLA_ANALYTICS) == BST_CHECKED;
+                    bool cb_server = IsDlgButtonChecked(hdlg, IDC_RADIO_CB_SERVER) == BST_CHECKED;
+                    bool ent_analytics = IsDlgButtonChecked(hdlg, IDC_RADIO_ENT_ANALYTICS) == BST_CHECKED;
+
+                    int MAKEINTRESOURCE_VALUE = IDD_NONE_DIALOG;
 
                     SET_CHECKBOX_STRING(collect_logs, IDC_CHECKBOX_3, "yes", "no");
 
-                    if(capella_checked && couchbase_server_checked){
-                        MAKEINTRESOURCE_VALUE = IDD_BOTH_DIALOG;
-                    }
-                    else if(capella_checked) {
+                    if (capella_ops) {
                         MAKEINTRESOURCE_VALUE = IDD_CAPELLA_DIALOG;
-                        SET_CHECKBOX_STRING(connect_to_capella, IDC_CHECKBOX_1, "yes", "no");
-                    }
-                    else if(couchbase_server_checked){
+                        ci.connect_to_capella = "yes";
+                        lpsetupdlg.source_type = 1;
+                    } else if (capella_analytics) {
+                        MAKEINTRESOURCE_VALUE = IDD_CAPELLA_DIALOG;
+                        ci.connect_to_capella = "yes";
+                        lpsetupdlg.source_type = 2;
+                    } else if (cb_server) {
                         MAKEINTRESOURCE_VALUE = IDD_COUCHBASE_SERVER_DIALOG;
-                        SET_CHECKBOX_STRING(connect_to_capella, IDC_CHECKBOX_2, "no", "yes");
+                        ci.connect_to_capella = "no";
+                        lpsetupdlg.source_type = 3;
+                    } else if (ent_analytics) {
+                        MAKEINTRESOURCE_VALUE = IDD_COUCHBASE_SERVER_DIALOG;
+                        ci.connect_to_capella = "no";
+                        lpsetupdlg.source_type = 4;
                     }
-                    else {
-                        MAKEINTRESOURCE_VALUE = IDD_NONE_DIALOG;
-                    }
+
 #undef SET_CHECKBOX_STRING
 
                     auto ret = DialogBoxParam(module_instance, MAKEINTRESOURCE(MAKEINTRESOURCE_VALUE), hdlg, ConfigDlgProc, lpsetupdlg.GetAsLPARAM());

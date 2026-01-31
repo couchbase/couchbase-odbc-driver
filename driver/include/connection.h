@@ -29,6 +29,7 @@ private:
     std::string certificate_file;
     std::string client_cert;
     std::string client_key;
+    std::string client_key_password;
     std::string ca_location;
     std::string path;
     std::string default_format;
@@ -57,7 +58,7 @@ public:
     std::string server;
     std::uint32_t connection_timeout = 0;
     std::uint32_t timeout = 0;
-    std::string catalog;
+
     std::int32_t string_max_length = 0;
     std::string browse_result;
     int browse_connect_step = 0;
@@ -72,8 +73,8 @@ public:
     bool connectInSSLMode = false;
     std::string auth_mode = "";
     std::string advanced_params = "";
-    std::string scope_part_one;
-    std::string scope_part_two;
+    std::string catalog_part_1;
+    std::string catalog_part_2;
     lcb_INSTANCE* lcb_instance;
     explicit Connection(Environment & environment);
     // Lookup TypeInfo for given name of type.
@@ -104,10 +105,11 @@ public:
     void build_conn_str_on_prem_ssl(std::string&);
     void build_conn_str_capella(std::string&);
     void build_conn_str_on_prem_without_ssl(std::string&);
-    void check_if_two_part_scope_name();
     void redirectCoutToFile(const std::string& filename, std::ofstream& outFile, std::streambuf*& coutBuffer);
     void logConnectionParams();
     void appendAdvancedParams(std::stringstream& ss, const std::string& params, bool& hasQuery);
+    void checkIfTwoPartScopeName();
+    void parseDatabaseAndScope();
 };
 
 template <> Descriptor& Connection::allocateChild<Descriptor>();

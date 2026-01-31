@@ -28,7 +28,8 @@ struct ConnInfo {
     std::string private_key_file;
     std::string certificate_file;
     std::string caLocation;
-    std::string catalog;
+    std::string database;
+    std::string scope;
     std::string sid;
     std::string huge_int_as_string;
     std::string stringmaxlength;
@@ -40,6 +41,7 @@ struct ConnInfo {
     std::string client_cert;
     std::string client_key;
     std::string advanced_params;
+    std::string client_key_password;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

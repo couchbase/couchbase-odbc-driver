@@ -15,6 +15,7 @@ extern "C" {
 lcb_STATUS lcb_createopts_destroy(lcb_CREATEOPTS *);
 lcb_STATUS lcb_createopts_connstr(lcb_CREATEOPTS *,const char *,size_t);
 lcb_STATUS lcb_createopts_credentials(lcb_CREATEOPTS *, const char *,size_t , const char *, size_t );
+lcb_STATUS lcb_createopts_tls_key_password(lcb_CREATEOPTS *, const char *, size_t);
 }
 
 std::string GenerateSessionId() {
@@ -52,6 +53,7 @@ void Connection::cb_check(lcb_STATUS err, const char * msg) {
 }
 
 void Connection::connect(const std::string & connection_string) {
+    std::cout<<"\nLOG: RAW connection string: "<<connection_string<<"\n";
     if (session && session->connected())
         throw SqlException("Connection name in use", "08002");
 
@@ -108,7 +110,6 @@ void Connection::connect(const std::string & connection_string) {
     resetConfiguration();
     setConfiguration(cs_fields, dsn_fields);
 
-    LOG("Creating session with " << proto << "://" << server << ":" << ", DB: " << catalog);
     const char * cb_username = nullptr;
     const char * cb_password = nullptr;
     std::string conn_str;
@@ -156,6 +157,11 @@ void Connection::connect(const std::string & connection_string) {
     lcb_createopts_create(&lcb_create_options, LCB_TYPE_CLUSTER);
     lcb_createopts_connstr(lcb_create_options, conn_str.c_str(), conn_str.length());
     lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
+
+    if (Poco::UTF8::icompare(auth_mode, "certificate") == 0 && !client_key_password.empty()) {
+        lcb_createopts_tls_key_password(lcb_create_options, client_key_password.c_str(), client_key_password.length());
+    }
+
     try {
         cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
     } catch (std::exception & ex) {
@@ -173,7 +179,8 @@ void Connection::connect(const std::string & connection_string) {
 
     Statement statement(*this);
     database_entity_support = checkDatabaseEntitySupport(statement);
-    check_if_two_part_scope_name();
+    checkIfTwoPartScopeName();
+    parseDatabaseAndScope();
 }
 
 void Connection::logConnectionParams() {
@@ -187,8 +194,9 @@ void Connection::logConnectionParams() {
     std::cout << "\nLOG: password length is :-> " << password.length();
     std::cout << "\nLOG: sslmode is :-> " << sslmode;
     std::cout << "\nLOG: Connection String (URL) is :-> " << url;
-    std::cout << "\nLOG: Host is :-> " << server;
-    std::cout << "\nLOG: Scope/Database is :-> " << catalog;
+    std::cout << "\nLOG: Address is :-> " << server;
+    std::cout << "\nLOG: Database is :-> " << catalog_part_1;
+    std::cout << "\nLOG: Scope is :-> " << catalog_part_2;
     std::cout << "\nLOG: connectInSSLMode is :-> " << connectInSSLMode;
     std::cout << "\nLOG: connect_to_capella is :-> " << connect_to_capella;
     std::cout << "\nLOG: collect_logs path is :-> " << collect_logs;
@@ -197,6 +205,8 @@ void Connection::logConnectionParams() {
     std::cout << "\nLOG: client_key path is :-> " << client_key;
     std::cout << "\nLOG: advanced_params is :-> " << advanced_params;
     std::cout << "\nLOG: certificate_file path is :-> " << certificate_file;
+    std::cout << "\nLOG: client key passphrase length is :-> " << client_key_password.length();
+    std::cout << std::endl;
 }
 
 void Connection::resetConfiguration() {
@@ -215,7 +225,8 @@ void Connection::resetConfiguration() {
     ca_location.clear();
     path.clear();
     default_format.clear();
-    catalog.clear();
+    catalog_part_1.clear();
+    catalog_part_2.clear();
     browse_result.clear();
     browse_connect_step = 0;
     string_max_length = 0;
@@ -223,6 +234,7 @@ void Connection::resetConfiguration() {
     auth_mode.clear();
     client_cert.clear();
     client_key.clear();
+    client_key_password.clear();
 }
 
 void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_value_map_t & dsn_fields) {
@@ -353,13 +365,7 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
                 path = value;
             }
         }
-        else if (Poco::UTF8::icompare(key, INI_CATALOG) == 0) {
-            recognized_key = true;
-            valid_value = true;
-            if (valid_value) {
-                catalog = value;
-            }
-        } else if (Poco::UTF8::icompare(key, INI_LOGIN_TIMEOUT) == 0) {
+        else if (Poco::UTF8::icompare(key, INI_LOGIN_TIMEOUT) == 0) {
             recognized_key = true;
             unsigned int typed_value = 75;
             valid_value = (value.empty()
@@ -417,7 +423,8 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
         else if (Poco::UTF8::icompare(key, INI_AUTH_MODE) == 0) {
             recognized_key = true;
             valid_value = (Poco::UTF8::icompare(value, INI_AUTH_MODE_BASIC) == 0 ||
-                           Poco::UTF8::icompare(value, INI_AUTH_MODE_CERT) == 0);
+                           Poco::UTF8::icompare(value, INI_AUTH_MODE_CERT) == 0 ||
+                           Poco::UTF8::icompare(value, INI_AUTH_MODE_LDAP) == 0);
             if (valid_value) {
                 auth_mode = value;
             }
@@ -434,6 +441,29 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             valid_value = true;
             if (valid_value) {
                 client_key = value;
+            }
+        }
+        else if (
+            Poco::UTF8::icompare(key, INI_CLIENT_KEY_PASSWORD) == 0
+        ) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                client_key_password = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_DATABASE) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                catalog_part_1 = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_SCOPE) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                catalog_part_2 = value;
             }
         }
 
@@ -513,7 +543,7 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
                 default_format = parameter.second;
             }
             else if (Poco::UTF8::icompare(parameter.first, "catalog") == 0) {
-                catalog = parameter.second;
+                catalog_part_1 = parameter.second;
             }
         }
     }
@@ -546,9 +576,6 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
 
     if (default_format.empty())
         default_format = "ODBCDriver2";
-
-    if (catalog.empty())
-        catalog = "default";
 
     if (string_max_length == 0)
         string_max_length = TypeInfo::string_max_size;
@@ -668,6 +695,9 @@ void Connection::build_conn_str_on_prem_ssl(std::string& conn_str) {
         ss << "&certpath=" << client_cert;
         ss << "&keypath=" << client_key;
     }
+    if (Poco::UTF8::icompare(auth_mode, "ldap") == 0) {
+        ss << "&sasl_mech_force=PLAIN";
+    }
     bool hasQuery = true; // we already have ?truststorepath
     appendAdvancedParams(ss, advanced_params, hasQuery);
 
@@ -677,7 +707,7 @@ void Connection::build_conn_str_on_prem_ssl(std::string& conn_str) {
     }
 
     conn_str = ss.str();
-    std::cout << "\nLOG: Connection String: " << conn_str;
+    std::cout << "\nLOG: Connection String: " << conn_str << std::endl;
 }
 
 void Connection::build_conn_str_capella(std::string& conn_str) {
@@ -690,7 +720,7 @@ void Connection::build_conn_str_capella(std::string& conn_str) {
     }
 
     conn_str = ss.str();
-    std::cout << "\nLOG: Inside build_conn_str_capella WIN32 is :-> " << conn_str;
+    std::cout << "\nLOG: Inside build_conn_str_capella WIN32 is :-> " << conn_str << std::endl;
 }
 
 void Connection::build_conn_str_on_prem_without_ssl(std::string& conn_str) {
@@ -699,6 +729,10 @@ void Connection::build_conn_str_on_prem_without_ssl(std::string& conn_str) {
     ss << "couchbase://" << server;
 
     bool hasQuery = false;
+    if (Poco::UTF8::icompare(auth_mode, "ldap") == 0) {
+        ss << "?sasl_mech_force=PLAIN";
+        hasQuery = true;
+    }
     appendAdvancedParams(ss, advanced_params, hasQuery);
 
     if (collect_logs && !log_file.empty()) {
@@ -707,7 +741,7 @@ void Connection::build_conn_str_on_prem_without_ssl(std::string& conn_str) {
     }
 
     conn_str = ss.str();
-    std::cout << "\nLOG: Non-SSL Connection String: " << conn_str;
+    std::cout << "\nLOG: Non-SSL Connection String: " << conn_str << std::endl;
 }
 
 void Connection::appendAdvancedParams(std::stringstream& ss, const std::string& params, bool& hasQuery) {
@@ -737,14 +771,18 @@ void Connection::appendAdvancedParams(std::stringstream& ss, const std::string& 
     }
 }
 
-void Connection::check_if_two_part_scope_name(){
-    size_t slashPosition = catalog.find("/");
-    if (slashPosition != std::string::npos) {
-        two_part_scope_name = true;
+void Connection::checkIfTwoPartScopeName() {
+    two_part_scope_name = !catalog_part_2.empty();
+}
 
-        // Extract substrings before and after the forward slash
-        scope_part_one = catalog.substr(0, slashPosition);
-        scope_part_two = catalog.substr(slashPosition + 1);
+void Connection::parseDatabaseAndScope() {
+    if (!catalog_part_2.empty()) {
+        size_t dotPos = catalog_part_2.find('.');
+        if (dotPos != std::string::npos) {
+            std::string full_name = catalog_part_2;
+            catalog_part_1 = full_name.substr(0, dotPos);
+            catalog_part_2 = full_name.substr(dotPos + 1);
+        }
     }
 }
 

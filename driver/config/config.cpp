@@ -44,29 +44,31 @@ void readDSNinfo(ConnInfo * ci, bool overwrite) {
         ci->NAME = toUTF8(value);                        \
     }
 
-    GET_CONFIG(desc,            INI_DESC,            INI_DESC_DEFAULT);
-    GET_CONFIG(url,             INI_URL,             INI_URL_DEFAULT);
-    GET_CONFIG(username,        INI_USERNAME,        INI_USERNAME_DEFAULT);
-    GET_CONFIG(password,        INI_PASSWORD,        INI_PASSWORD_DEFAULT);
-    GET_CONFIG(server,          INI_SERVER,          INI_SERVER_DEFAULT);
-    GET_CONFIG(timeout,         INI_TIMEOUT,         INI_TIMEOUT_DEFAULT);
-    GET_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY, INI_VERIFY_CONNECTION_EARLY_DEFAULT);
-    GET_CONFIG(sslmode,         INI_SSLMODE,         INI_SSLMODE_DEFAULT);
-    GET_CONFIG(catalog,        INI_CATALOG,        INI_CATALOG_DEFAULT);
-    GET_CONFIG(sid,        INI_SOURCE_ID,        INI_SOURCE_ID_DEFAULT);
-    GET_CONFIG(login_timeout, INI_LOGIN_TIMEOUT, INI_LOGIN_TIMEOUT_DEFAULT);
-    GET_CONFIG(query_timeout, INI_QUERY_TIMEOUT, INI_QUERY_TIMEOUT_DEFAULT);
-    GET_CONFIG(huge_int_as_string, INI_HUGE_INT_AS_STRING, INI_HUGE_INT_AS_STRING_DEFAULT);
-    GET_CONFIG(stringmaxlength, INI_STRINGMAXLENGTH, INI_STRINGMAXLENGTH_DEFAULT);
-    GET_CONFIG(driver_log,       INI_DRIVERLOG,       INI_DRIVERLOG_DEFAULT);
-    GET_CONFIG(driver_log_file,   INI_DRIVERLOGFILE,   INI_DRIVERLOGFILE_DEFAULT);
-    GET_CONFIG(certificate_file, INI_CERTIFICATEFILE, INI_CERTIFICATEFILE_DEFAULT);
-    GET_CONFIG(connect_to_capella, INI_CONNECT_TO_CAPELLA, INI_CONNECT_TO_CAPELLA_DEFAULT);
-    GET_CONFIG(collect_logs, INI_COLLECT_LOG, INI_COLLECT_LOG_DEFAULT);
-    GET_CONFIG(auth_mode,   INI_AUTH_MODE,   INI_AUTH_MODE_DEFAULT);
-    GET_CONFIG(client_cert, INI_CLIENT_CERT, INI_CLIENT_CERT_DEFAULT);
-    GET_CONFIG(client_key,  INI_CLIENT_KEY,  INI_CLIENT_KEY_DEFAULT);
-    GET_CONFIG(advanced_params, INI_ADVANCED_PARAMS, INI_ADVANCED_PARAMS_DEFAULT);
+    GET_CONFIG(desc,                    INI_DESC,                       INI_DESC_DEFAULT);
+    GET_CONFIG(url,                     INI_URL,                        INI_URL_DEFAULT);
+    GET_CONFIG(username,                INI_USERNAME,                   INI_USERNAME_DEFAULT);
+    GET_CONFIG(password,                INI_PASSWORD,                   INI_PASSWORD_DEFAULT);
+    GET_CONFIG(server,                  INI_SERVER,                     INI_SERVER_DEFAULT);
+    GET_CONFIG(timeout,                 INI_TIMEOUT,                    INI_TIMEOUT_DEFAULT);
+    GET_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY,    INI_VERIFY_CONNECTION_EARLY_DEFAULT);
+    GET_CONFIG(database,                INI_DATABASE,                   INI_DATABASE_DEFAULT);
+    GET_CONFIG(scope,                   INI_SCOPE,                      INI_SCOPE_DEFAULT);
+    GET_CONFIG(sslmode,                 INI_SSLMODE,                    INI_SSLMODE_DEFAULT);
+    GET_CONFIG(sid,                     INI_SOURCE_ID,                  INI_SOURCE_ID_DEFAULT);
+    GET_CONFIG(login_timeout,           INI_LOGIN_TIMEOUT,              INI_LOGIN_TIMEOUT_DEFAULT);
+    GET_CONFIG(query_timeout,           INI_QUERY_TIMEOUT,              INI_QUERY_TIMEOUT_DEFAULT);
+    GET_CONFIG(huge_int_as_string,      INI_HUGE_INT_AS_STRING,         INI_HUGE_INT_AS_STRING_DEFAULT);
+    GET_CONFIG(stringmaxlength,         INI_STRINGMAXLENGTH,            INI_STRINGMAXLENGTH_DEFAULT);
+    GET_CONFIG(driver_log,              INI_DRIVERLOG,                  INI_DRIVERLOG_DEFAULT);
+    GET_CONFIG(driver_log_file,         INI_DRIVERLOGFILE,              INI_DRIVERLOGFILE_DEFAULT);
+    GET_CONFIG(certificate_file,        INI_CERTIFICATEFILE,            INI_CERTIFICATEFILE_DEFAULT);
+    GET_CONFIG(connect_to_capella,      INI_CONNECT_TO_CAPELLA,         INI_CONNECT_TO_CAPELLA_DEFAULT);
+    GET_CONFIG(collect_logs,            INI_COLLECT_LOG,                INI_COLLECT_LOG_DEFAULT);
+    GET_CONFIG(auth_mode,               INI_AUTH_MODE,                  INI_AUTH_MODE_DEFAULT);
+    GET_CONFIG(client_cert,             INI_CLIENT_CERT,                INI_CLIENT_CERT_DEFAULT);
+    GET_CONFIG(client_key,              INI_CLIENT_KEY,                 INI_CLIENT_KEY_DEFAULT);
+    GET_CONFIG(advanced_params,         INI_ADVANCED_PARAMS,            INI_ADVANCED_PARAMS_DEFAULT);
+    GET_CONFIG(client_key_password,     INI_CLIENT_KEY_PASSWORD,        INI_CLIENT_KEY_PASSWORD_DEFAULT);
 
 #undef GET_CONFIG
 }
@@ -94,29 +96,31 @@ void writeDSNinfo(const ConnInfo * ci) {
             throw std::runtime_error("SQLWritePrivateProfileString failed to write value of " INI_NAME); \
     }
 
-    WRITE_CONFIG(desc,            INI_DESC);
-    WRITE_CONFIG(url,             INI_URL);
-    WRITE_CONFIG(username,        INI_USERNAME);
-    WRITE_CONFIG(password,        INI_PASSWORD);
-    WRITE_CONFIG(server,          INI_SERVER);
-    WRITE_CONFIG(timeout,         INI_TIMEOUT);
-    WRITE_CONFIG(verify_connection_early, INI_VERIFY_CONNECTION_EARLY);
-    WRITE_CONFIG(sslmode,         INI_SSLMODE);
-    WRITE_CONFIG(catalog,        INI_CATALOG);
-    WRITE_CONFIG(sid,        INI_SOURCE_ID);
-    WRITE_CONFIG(login_timeout, INI_LOGIN_TIMEOUT);
-    WRITE_CONFIG(query_timeout, INI_QUERY_TIMEOUT);
-    WRITE_CONFIG(huge_int_as_string, INI_HUGE_INT_AS_STRING);
-    WRITE_CONFIG(stringmaxlength, INI_STRINGMAXLENGTH);
-    WRITE_CONFIG(driver_log,       INI_DRIVERLOG);
-    WRITE_CONFIG(driver_log_file,   INI_DRIVERLOGFILE);
-    WRITE_CONFIG(certificate_file,  INI_CERTIFICATEFILE);
-    WRITE_CONFIG(connect_to_capella,  INI_CONNECT_TO_CAPELLA);
-    WRITE_CONFIG(collect_logs, INI_COLLECT_LOG);
-    WRITE_CONFIG(auth_mode,   INI_AUTH_MODE);
-    WRITE_CONFIG(client_cert, INI_CLIENT_CERT);
-    WRITE_CONFIG(client_key,  INI_CLIENT_KEY);
-    WRITE_CONFIG(advanced_params, INI_ADVANCED_PARAMS);
+    WRITE_CONFIG(desc,                      INI_DESC);
+    WRITE_CONFIG(url,                       INI_URL);
+    WRITE_CONFIG(username,                  INI_USERNAME);
+    WRITE_CONFIG(password,                  INI_PASSWORD);
+    WRITE_CONFIG(server,                    INI_SERVER);
+    WRITE_CONFIG(timeout,                   INI_TIMEOUT);
+    WRITE_CONFIG(verify_connection_early,   INI_VERIFY_CONNECTION_EARLY);
+    WRITE_CONFIG(database,                  INI_DATABASE);
+    WRITE_CONFIG(scope,                     INI_SCOPE);
+    WRITE_CONFIG(sslmode,                   INI_SSLMODE);
+    WRITE_CONFIG(sid,                       INI_SOURCE_ID);
+    WRITE_CONFIG(login_timeout,             INI_LOGIN_TIMEOUT);
+    WRITE_CONFIG(query_timeout,             INI_QUERY_TIMEOUT);
+    WRITE_CONFIG(huge_int_as_string,        INI_HUGE_INT_AS_STRING);
+    WRITE_CONFIG(stringmaxlength,           INI_STRINGMAXLENGTH);
+    WRITE_CONFIG(driver_log,                INI_DRIVERLOG);
+    WRITE_CONFIG(driver_log_file,           INI_DRIVERLOGFILE);
+    WRITE_CONFIG(certificate_file,          INI_CERTIFICATEFILE);
+    WRITE_CONFIG(connect_to_capella,        INI_CONNECT_TO_CAPELLA);
+    WRITE_CONFIG(collect_logs,              INI_COLLECT_LOG);
+    WRITE_CONFIG(auth_mode,                 INI_AUTH_MODE);
+    WRITE_CONFIG(client_cert,               INI_CLIENT_CERT);
+    WRITE_CONFIG(client_key,                INI_CLIENT_KEY);
+    WRITE_CONFIG(advanced_params,           INI_ADVANCED_PARAMS);
+    WRITE_CONFIG(client_key_password,       INI_CLIENT_KEY_PASSWORD);
 
 #undef WRITE_CONFIG
 }
@@ -354,13 +358,19 @@ key_value_map_t readDSNInfo(const std::string & dsn_utf8) {
              INI_CERTIFICATEFILE,
              INI_CALOCATION,
              INI_PATH,
-             INI_CATALOG,
+             INI_DATABASE,
+             INI_SCOPE,
              INI_SOURCE_ID,
              INI_LOGIN_TIMEOUT,
              INI_QUERY_TIMEOUT,
              INI_STRINGMAXLENGTH,
              INI_DRIVERLOG,
-             INI_DRIVERLOGFILE}) {
+             INI_DRIVERLOGFILE,
+             INI_AUTH_MODE,
+             INI_CLIENT_CERT,
+             INI_CLIENT_KEY,
+             INI_CLIENT_KEY_PASSWORD,
+             INI_ADVANCED_PARAMS }) {
         if (
             std::find_if(
                 keys.begin(),
