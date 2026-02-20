@@ -8,7 +8,6 @@ const std::map<std::string, TypeInfo> types_g = {
     {"UInt8", TypeInfo {"BIT", true, SQL_BIT, 3, 1}},
     {"UInt16", TypeInfo {"SMALLINT", true, SQL_SMALLINT, 5, 2}},
     {"UInt32", TypeInfo {"INT", true, SQL_BIGINT /* was SQL_INTEGER */, 10, 4}}, // With perl, python ODBC drivers INT is uint32 and it cant store values bigger than 2147483647: 2147483648 -> -2147483648 4294967295 -> -1
-    {"UInt32", TypeInfo {"INT", true, SQL_INTEGER, 10, 4}},
     {"UInt64", TypeInfo {"BIGINT", true, SQL_BIGINT, 20, 8}},
     {"Int8", TypeInfo {"TINYINT", false, SQL_TINYINT, 1 + 3, 1}}, // one char for sign
     {"Int16", TypeInfo {"SMALLINT", false, SQL_SMALLINT, 1 + 5, 2}},
@@ -23,6 +22,7 @@ const std::map<std::string, TypeInfo> types_g = {
     {"Date", TypeInfo {"DATE", true, SQL_TYPE_DATE, 10, 6}},
     {"DateTime", TypeInfo {"TIMESTAMP", true, SQL_TYPE_TIMESTAMP, 19, 16}},
     {"DateTime64", TypeInfo {"TIMESTAMP", true, SQL_TYPE_TIMESTAMP, 29, 16}},
+    {"Time", TypeInfo {"TIME", true, SQL_TYPE_TIME, 8, 6}},
     {"Array", TypeInfo {"TEXT", true, SQL_VARCHAR, TypeInfo::string_max_size, TypeInfo::string_max_size}},
     {"Nothing", TypeInfo {"NULL", true, SQL_TYPE_NULL, 1, 1}},
 
@@ -32,24 +32,29 @@ const std::map<std::string, TypeInfo> types_g = {
 };
 
 const std::map<std::string, std::string> cb_to_ch_types_g = {
-    {"string?", "String"},
-    {"double?", "Float64"},
-    {"int64?", "Int64"},
-    {"boolean?", "UInt8"},
-    {"string", "String"},
-    {"double", "Float64"},
-    {"int64", "Int64"},
-    {"boolean", "UInt8"},
-    {"int32?", "Int32"},
-    {"int32", "Int32"},
-    {"int16?", "Int16"},
-    {"int16", "Int16"},
-    {"date","Date"},
-    {"date?","Date"},
-    {"time","Time"},
-    {"time?","Time"},
-    {"datetime","DateTime"},
-    {"datetime?","DateTime"}
+    // CBAS primitive types allowed in CREATE VIEW
+    {"boolean",   "UInt8"},
+    {"boolean?",  "UInt8"},
+    {"bigint",    "Int64"},
+    {"bigint?",   "Int64"},
+    {"double",    "Float64"},
+    {"double?",   "Float64"},
+    {"string",    "String"},
+    {"string?",   "String"},
+    {"datetime",  "DateTime"},
+    {"datetime?", "DateTime"},
+    {"date",      "Date"},
+    {"date?",     "Date"},
+    {"time",      "Time"},
+    {"time?",     "Time"},
+    {"int8",      "Int8"},
+    {"int8?",     "Int8"},
+    {"int16",     "Int16"},
+    {"int16?",    "Int16"},
+    {"int32",     "Int32"},
+    {"int32?",    "Int32"},
+    {"int64",     "Int64"},
+    {"int64?",    "Int64"}
 };
 
 const std::map<std::string, uint8_t> types_id_g = {{"Float64", 12}};
@@ -116,7 +121,7 @@ std::string convertTypeIdToUnparametrizedCanonicalTypeName(DataSourceTypeId type
         case DataSourceTypeId::UUID:        return "UUID";
 
         default:
-            throw std::runtime_error("unknown type id");
+            return "String"; // Fall back to String for unknown types instead of throwing
     }
 }
 

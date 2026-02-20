@@ -58,11 +58,13 @@ CBASResultSet::CBASResultSet(
             if (types && types->type == cJSON_Array) {
                 std::int32_t columns_count = cJSON_GetArraySize(types);
                 columns_info.resize(columns_count);
+                col_tags.assign(columns_count, (uint8_t)ColTypeTag::Other_);
 
                 cJSON * type = types->child;
                 int cIdx = 0;
                 while (type) {
-                    auto & column_info = indexMapper.size() > cIdx ? columns_info[indexMapper[cIdx]] : columns_info[cIdx];
+                    const int odbc_slot = indexMapper.empty() ? cIdx : indexMapper[cIdx];
+                    auto & column_info = columns_info[odbc_slot];
                     if (type->type == cJSON_String) {
                         auto typeIterator = cb_to_ch_types_g.find(type->valuestring);
                         if (typeIterator != cb_to_ch_types_g.end()) {
@@ -87,6 +89,20 @@ CBASResultSet::CBASResultSet(
                             column_info.type_without_parameters = "String";
                         }
                         column_info.updateTypeInfo();
+
+                        // Compute fast dispatch tag once, used by readNextRow() every row.
+                        const auto & t = column_info.type;
+                        ColTypeTag tag;
+                        if      (t == "String")   tag = ColTypeTag::String_;
+                        else if (t == "Float64")  tag = ColTypeTag::Float64_;
+                        else if (t == "Date")     tag = ColTypeTag::Date_;
+                        else if (t == "Time")     tag = ColTypeTag::Time_;
+                        else if (t == "DateTime") tag = ColTypeTag::DateTime_;
+                        else if (t == "Int8"   || t == "Int16"  || t == "Int32"  || t == "Int64"  ||
+                                 t == "UInt8"  || t == "UInt16" || t == "UInt32" || t == "UInt64")
+                                                  tag = ColTypeTag::Integer_;
+                        else                      tag = ColTypeTag::Other_;
+                        col_tags[odbc_slot] = (uint8_t)tag;
                     }
 
                     type = type->next;
@@ -96,6 +112,7 @@ CBASResultSet::CBASResultSet(
         }
     }
 
+    cJSON_Delete(json);
     cookie.queryMeta.clear();
     finished = columns_info.empty();
     expected_column_order = nullptr;
@@ -104,85 +121,119 @@ CBASResultSet::CBASResultSet(
 bool CBASResultSet::readNextRow(Row & row) {
     std::string doc;
     if (std::getline(cookie.queryResultStrm, doc)) {
-        cJSON * json;
-        json = cJSON_Parse(doc.c_str());
+        cJSON * json = cJSON_Parse(doc.c_str());
         if (json && json->type == cJSON_Object) {
-            int cIdx = 0;
-            while (cIdx < columns_info.size()) {
-                auto & column_info = indexMapper.size() > cIdx ? columns_info[indexMapper[cIdx]] : columns_info[cIdx];
+            const int ncols = (int)columns_info.size();
+            for (int cIdx = 0; cIdx < ncols; ++cIdx) {
+                const int odbc_slot = indexMapper.empty() ? cIdx : indexMapper[cIdx];
+                auto & column_info = columns_info[odbc_slot];
+                cJSON * col = cJSON_GetObjectItem(json, column_info.name.c_str());
+                if (!col) continue;
+
                 DataSourceType<DataSourceTypeId::String> strVal;
                 value_manip::to_null(strVal.value);
-                const char* json_key = column_info.name.c_str();
-                cJSON * col = cJSON_GetObjectItem(json, json_key);
                 bool is_null = false;
-                if (col->type == cJSON_String) { // Handle String, Double, Date, Time, DateTime
-                    strVal.value = col->valuestring;
-                    if (column_info.type == "String") {
-                        if (strVal.value[0] == LOSSLESS_ADM_DELIMETER) {
-                            strVal.value = strVal.value.substr(1);
-                        }
-                    } else if (column_info.type == "Float64") { // Double
-                        std::ostringstream oss;
-                        auto types_id_it = types_id_g.find(column_info.type);
-                        if (types_id_it != types_id_g.end()) {
-                            uint64_t doubleTypeTag = types_id_it->second;
-                            oss << customHex((doubleTypeTag >> 4) & 0x0f);
-                            oss << customHex(doubleTypeTag & 0x0f);
-                        }
-                        oss << LOSSLESS_ADM_DELIMETER;
-                        if (strVal.value.substr(0, 3) == oss.str()) {
-                            strVal.value = strVal.value.substr(3);
-                        }
-                    }
-                    else if(column_info.type == "Date"){
-                        if(strVal.value.substr(0,3) == LOSSLESS_ADM_DELIMETER_DATE){
-                            std::string daysInString = strVal.value.substr(3,strVal.value.length());
-                            std::int32_t daysInt = std::stoi(daysInString);
+                switch (static_cast<ColTypeTag>(col_tags[odbc_slot])) {
 
-                            std::string dateInCorrectFormat = convertDaysSinceEpochToDateString(daysInt);
-                            strVal.value = dateInCorrectFormat;
+                    case ColTypeTag::String_:
+                        if (col->type == cJSON_String) {
+                            // lossless-adm strings are prefixed with ':'
+                            const char * vs = col->valuestring;
+                            strVal.value.assign(vs[0] == LOSSLESS_ADM_DELIMETER ? vs + 1 : vs);
+                        } else if (col->type == cJSON_NULL) {
+                            is_null = true;
                         }
-                    }
-                    else if (column_info.type == "Time"){
-                        if(strVal.value.substr(0,3) == LOSSLESS_ADM_DELIMETER_TIME){
-                            std::string timeInString = strVal.value.substr(3);
+                        break;
 
-                            std::int64_t timeLong = std::stoi(timeInString);
-                            std::string timeInCorrectFormat = convertMillisecondsSinceBeginningOfDayToTimeString(timeLong);
-                            strVal.value = timeInCorrectFormat;
+                    case ColTypeTag::Float64_:
+                        if (col->type == cJSON_String) {
+                            // lossless-adm Float64 prefix is always "0C:"
+                            const char * vs = col->valuestring;
+                            if (vs[0] == '0' && vs[1] == 'C' && vs[2] == ':')
+                                strVal.value.assign(vs + 3);
+                            else
+                                strVal.value.assign(vs);
+                        } else if (col->type == cJSON_NULL) {
+                            is_null = true;
                         }
-                    }
-                    else if (column_info.type == "DateTime"){
-                        if(strVal.value.substr(0,3) == LOSSLESS_ADM_DELIMETER_DATETIME){
-                            std::string datetimeInString = strVal.value.substr(3);
-                            long long milliseconds = std::stoll(datetimeInString);
+                        break;
 
-                            std::string datetimeInCorrectFormat = convertMillisecondsSinceEpochToDateTimeString(milliseconds);
-                            strVal.value = datetimeInCorrectFormat;
+                    case ColTypeTag::Date_:
+                        if (col->type == cJSON_String) {
+                            // lossless-adm Date prefix "11:"
+                            const char * vs = col->valuestring;
+                            if (vs[0] == '1' && vs[1] == '1' && vs[2] == ':')
+                                strVal.value = convertDaysSinceEpochToDateString(std::stoi(vs + 3));
+                            else
+                                strVal.value.assign(vs);
+                        } else if (col->type == cJSON_NULL) {
+                            is_null = true;
                         }
+                        break;
+
+                    case ColTypeTag::Time_:
+                        if (col->type == cJSON_String) {
+                            // lossless-adm Time prefix "12:"
+                            const char * vs = col->valuestring;
+                            if (vs[0] == '1' && vs[1] == '2' && vs[2] == ':')
+                                strVal.value = convertMillisecondsSinceBeginningOfDayToTimeString(std::stoll(vs + 3));
+                            else
+                                strVal.value.assign(vs);
+                        } else if (col->type == cJSON_NULL) {
+                            is_null = true;
+                        }
+                        break;
+
+                    case ColTypeTag::DateTime_:
+                        if (col->type == cJSON_String) {
+                            // lossless-adm DateTime prefix "10:"
+                            const char * vs = col->valuestring;
+                            if (vs[0] == '1' && vs[1] == '0' && vs[2] == ':')
+                                strVal.value = convertMillisecondsSinceEpochToDateTimeString(std::stoll(vs + 3));
+                            else
+                                strVal.value.assign(vs);
+                        } else if (col->type == cJSON_NULL) {
+                            is_null = true;
+                        }
+                        break;
+
+                case ColTypeTag::Integer_:
+                    if (col->type == cJSON_Number) {
+                        strVal.value = std::to_string(col->valueint);
+                    } else if (col->type == cJSON_String) {
+                        // CBAS sends bigints (> 2^53) as lossless ADM strings (e.g., ":9876543210").
+                        // bigint maps to Integer_, we must also handle the cJSON_String encoding for large values.
+                        const char * vs = col->valuestring;
+                        strVal.value.assign(vs[0] == LOSSLESS_ADM_DELIMETER ? vs + 1 : vs);
+                    } else if (col->type == cJSON_True) {
+                        strVal.value = "1";
+                    } else if (col->type == cJSON_False) {
+                        strVal.value = "0";
+                    } else if (col->type == cJSON_NULL) {
+                        is_null = true;
                     }
-                } else if (col->type == cJSON_Number) {
-                    std::ostringstream oss;
-                    oss << col->valueint;
-                    strVal.value = oss.str();
-                } else if (col->type == cJSON_NULL) {
-                    is_null = true;
-                } else if (col->type == cJSON_True || col->type == cJSON_False) {
-                    strVal.value = cJSON_Print(col); // true/false
-                } else {
-                    //todo: throw error ?
+                    break;
+
+                    default: // ColTypeTag::Other_ : boolean (UInt8) or unrecognised type
+                        if (col->type == cJSON_True || col->type == cJSON_False)
+                            strVal.value = (col->type == cJSON_True) ? "true" : "false";
+                        else if (col->type == cJSON_Number)
+                            strVal.value = std::to_string(col->valueint);
+                        else if (col->type == cJSON_NULL)
+                            is_null = true;
+                        break;
                 }
 
                 if (is_null) {
-                    row.fields[(indexMapper.size() > cIdx) ? indexMapper[cIdx] : cIdx].data = DataSourceType<DataSourceTypeId::Nothing> {};
+                    row.fields[odbc_slot].data = DataSourceType<DataSourceTypeId::Nothing>{};
                 } else {
                     if (column_info.display_size_so_far < strVal.value.size())
                         column_info.display_size_so_far = strVal.value.size();
-                    row.fields[(indexMapper.size() > cIdx) ? indexMapper[cIdx] : cIdx].data = std::move(strVal);
+                    row.fields[odbc_slot].data = std::move(strVal);
                 }
-                cIdx++;
             }
         }
+        cJSON_Delete(json);
         return true;
     }
 
