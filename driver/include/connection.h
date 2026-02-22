@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "driver/include/driver.h"
 #include "driver/include/environment.h"
 #include "driver/config/config.h"
@@ -46,10 +48,11 @@ private:
     const int DEFAULT_PRODUCTION_SSL_PORT = 11207;
     const int DEFAULT_PRODUCTION_PORT = 11210;
     std::string log_file;
+    std::string diag_log_file;
     int log_level = 5;
-public:
     std::ofstream outFile;
     std::streambuf* coutBuffer = nullptr;
+public:
     std::string dsn;
     std::uint32_t login_timeout;
     bool is_set_login_timeout;
@@ -77,6 +80,7 @@ public:
     std::string catalog_part_2;
     lcb_INSTANCE* lcb_instance;
     explicit Connection(Environment & environment);
+    ~Connection();
     // Lookup TypeInfo for given name of type.
     const TypeInfo & getTypeInfo(const std::string & type_name, const std::string & type_name_without_parameters) const;
     void connect(const std::string & connection_string);
@@ -105,8 +109,7 @@ public:
     void build_conn_str_on_prem_ssl(std::string&);
     void build_conn_str_capella(std::string&);
     void build_conn_str_on_prem_without_ssl(std::string&);
-    void redirectCoutToFile(const std::string& filename, std::ofstream& outFile, std::streambuf*& coutBuffer);
-    void logConnectionParams();
+    void logConnectionParams(const std::string& conn_str);
     void appendAdvancedParams(std::stringstream& ss, const std::string& params, bool& hasQuery);
     void checkIfTwoPartScopeName();
     void parseDatabaseAndScope();

@@ -7,4 +7,5 @@
 
 std::wstring fetchDriverKeyDataFromCouchbaseODBCDriverWinReg();
 std::string getLcbLogPath();
+std::string getDriverDiagLogPath();
 #endif

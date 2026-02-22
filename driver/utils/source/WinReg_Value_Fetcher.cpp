@@ -39,4 +39,16 @@ std::string getLcbLogPath(){
     }
     return "";
 }
+// Driver diagnostics log: appended to preserve all entries.
+// Separate from couchbase-odbc.log to avoid truncation affecting our records.
+std::string getDriverDiagLogPath(){
+    PWSTR path = NULL;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &path))) {
+        std::wstring ws(path);
+        CoTaskMemFree(path);
+        std::string documentsPath(ws.begin(), ws.end());
+        return documentsPath + "\\Power BI Desktop\\Custom Connectors\\couchbase-odbc-diag.log";
+    }
+    return "";
+}
 #endif

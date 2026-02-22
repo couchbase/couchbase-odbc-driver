@@ -1,4 +1,6 @@
 #include <string.h>
+#include <fstream>
+#include <cstdio>
 
 #include "driver/include/cJSON.h"
 #include "driver/config/ini_defines.h"
@@ -29,6 +31,19 @@ Connection::Connection(Environment & environment)
       session_id(GenerateSessionId())
 {
     resetConfiguration();
+}
+
+Connection::~Connection() {
+    #ifdef _WIN32
+    // Restore std::cout if it was redirected to the diag file
+    if (coutBuffer) {
+        std::cout.rdbuf(coutBuffer);
+        coutBuffer = nullptr;
+    }
+    if (outFile.is_open()) {
+        outFile.close();
+    }
+    #endif
 }
 
 const TypeInfo & Connection::getTypeInfo(const std::string & type_name, const std::string & type_name_without_parameters) const {
@@ -108,6 +123,34 @@ void Connection::connect(const std::string & connection_string) {
     }
 
     resetConfiguration();
+
+    #ifdef _WIN32
+        // Pre-scan for collect_logs before setConfiguration(),
+        {
+            auto it = cs_fields.find(INI_COLLECT_LOG);
+            if (it != cs_fields.end())
+                collect_logs = (it->second == "yes");
+            else {
+                it = dsn_fields.find(INI_COLLECT_LOG);
+                if (it != dsn_fields.end())
+                    collect_logs = (it->second == "yes");
+            }
+        }
+        if(collect_logs){
+            // lcb logs (fresh per connection: lcb truncates this file on lcb_create)
+            log_file = getLcbLogPath();
+            // std::cout throughout the connection lifetime is captured
+            diag_log_file = getDriverDiagLogPath();
+            if(!diag_log_file.empty() && !outFile.is_open()){
+                outFile.open(diag_log_file, std::ios::out);
+                if(outFile.is_open()){
+                    coutBuffer = std::cout.rdbuf();
+                    std::cout.rdbuf(outFile.rdbuf());
+                }
+            }
+        }
+    #endif
+
     setConfiguration(cs_fields, dsn_fields);
 
     const char * cb_username = nullptr;
@@ -123,17 +166,6 @@ void Connection::connect(const std::string & connection_string) {
         cb_username = username.c_str();
         cb_password = password.c_str();
     }
-
-    #ifdef _WIN32
-        if(collect_logs){
-            log_file = getLcbLogPath();
-            if(!log_file.empty()){
-                redirectCoutToFile(log_file, outFile,  coutBuffer);
-            }
-        }
-    #endif
-
-    logConnectionParams();
 
     if(connect_to_capella){
         //Always in SSL Mode, uses public certificate.
@@ -166,11 +198,15 @@ void Connection::connect(const std::string & connection_string) {
         cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
     } catch (std::exception & ex) {
         lcb_createopts_destroy(lcb_create_options);
+        // lcb_create failed before opening console_log_file; write diagnostics ourselves
+        logConnectionParams(conn_str);
         throw std::runtime_error(ex.what());
     }
     lcb_createopts_destroy(lcb_create_options);
     cb_check(lcb_connect(lcb_instance), "schedule connection");
     lcb_wait(lcb_instance, LCB_WAIT_DEFAULT);
+    // lcb has opened and written to log_file; now append our diagnostic params
+    logConnectionParams(conn_str);
     try {
         cb_check(lcb_get_bootstrap_status(lcb_instance), "bootstrap from cluster");
     } catch (std::exception & ex) {
@@ -183,13 +219,12 @@ void Connection::connect(const std::string & connection_string) {
     parseDatabaseAndScope();
 }
 
-void Connection::logConnectionParams() {
+void Connection::logConnectionParams(const std::string& conn_str) {
     auto now = std::chrono::system_clock::now();
-    // Convert to time_t for human-readable format
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
 
-    std::cout << "\nLOG: Logs collected at: " << std::put_time(std::gmtime(&now_time), "%Y-%m-%d %H:%M:%S");
-    std::cout << "\nLOG: log_file is :-> " << log_file;
+    std::cout << "\nLOG: --- Driver diagnostics ---";
+    std::cout << "\nLOG: Logged at: " << std::put_time(std::gmtime(&now_time), "%Y-%m-%d %H:%M:%S");
     std::cout << "\nLOG: username is :-> " << username;
     std::cout << "\nLOG: password length is :-> " << password.length();
     std::cout << "\nLOG: sslmode is :-> " << sslmode;
@@ -199,14 +234,15 @@ void Connection::logConnectionParams() {
     std::cout << "\nLOG: Scope is :-> " << catalog_part_2;
     std::cout << "\nLOG: connectInSSLMode is :-> " << connectInSSLMode;
     std::cout << "\nLOG: connect_to_capella is :-> " << connect_to_capella;
-    std::cout << "\nLOG: collect_logs path is :-> " << collect_logs;
+    std::cout << "\nLOG: collect_logs is :-> " << collect_logs;
     std::cout << "\nLOG: auth_mode is :-> " << auth_mode;
     std::cout << "\nLOG: client_cert path is :-> " << client_cert;
     std::cout << "\nLOG: client_key path is :-> " << client_key;
     std::cout << "\nLOG: advanced_params is :-> " << advanced_params;
     std::cout << "\nLOG: certificate_file path is :-> " << certificate_file;
     std::cout << "\nLOG: client key passphrase length is :-> " << client_key_password.length();
-    std::cout << std::endl;
+    std::cout << "\nLOG: lcb connection string is :-> " << conn_str;
+    std::cout << "\nLOG: --- End driver diagnostics ---" << std::endl;
 }
 
 void Connection::resetConfiguration() {
@@ -786,13 +822,4 @@ void Connection::parseDatabaseAndScope() {
     }
 }
 
-void Connection::redirectCoutToFile(const std::string& filename, std::ofstream& outFile, std::streambuf*& coutBuffer) {
-    // Open a file in write mode
-    outFile.open(filename);
 
-    // Save the current buffer of std::cout
-    coutBuffer = std::cout.rdbuf();
-
-    // Redirect std::cout to outFile
-    std::cout.rdbuf(outFile.rdbuf());
-}
