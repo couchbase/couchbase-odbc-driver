@@ -16,8 +16,19 @@ set(LCB_BUILD_DTRACE OFF CACHE BOOL "" FORCE)
 set(LCB_UNINSTALL_TARGET OFF CACHE BOOL "" FORCE)
 set(LCB_BUILD_STATIC 1 CACHE INTERNAL "" FORCE)
 
-cbdep_install(PACKAGE openssl VERSION ${OPENSSL_VERSION})
-set(OPENSSL_ROOT_DIR "${CMAKE_CURRENT_BINARY_DIR}/openssl-${OPENSSL_VERSION}")
+if (WIN32)
+    cbdep_install(PACKAGE openssl VERSION ${OPENSSL_VERSION})
+    set(OPENSSL_ROOT_DIR "${CMAKE_CURRENT_BINARY_DIR}/openssl-${OPENSSL_VERSION}")
+elseif (APPLE)
+    if (NOT OPENSSL_ROOT_DIR)
+        execute_process(
+            COMMAND brew --prefix openssl@3
+            OUTPUT_VARIABLE OPENSSL_ROOT_DIR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+    endif ()
+endif ()
 add_subdirectory (libcouchbase-odbc)
 
 if (CH_ODBC_PREFER_BUNDLED_POCO OR NOT Poco_FOUND)
@@ -54,6 +65,11 @@ if (CH_ODBC_PREFER_BUNDLED_POCO OR NOT Poco_FOUND)
     set (ENABLE_DATA OFF CACHE BOOL "" FORCE)
     set (ENABLE_NETSSL OFF CACHE BOOL "" FORCE)
 
+    if (APPLE)
+        # Use system zlib/pcre2/expat on macOS to avoid patching bundled Poco sources.
+        set (POCO_UNBUNDLED ON CACHE BOOL "" FORCE)
+    endif ()
+
     add_subdirectory (poco)
 
     set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH_bak})
@@ -62,9 +78,11 @@ if (CH_ODBC_PREFER_BUNDLED_POCO OR NOT Poco_FOUND)
     add_library(Poco::Net ALIAS Net)
     add_library(Poco::Foundation ALIAS Foundation)
 
-    # Remove pthread from linking poco's Net
-    set_property (TARGET Net PROPERTY INTERFACE_LINK_LIBRARIES "")
-    set_property (TARGET Foundation PROPERTY INTERFACE_LINK_LIBRARIES "")
+    if (NOT APPLE)
+        # Keep existing behavior outside macOS.
+        set_property (TARGET Net PROPERTY INTERFACE_LINK_LIBRARIES "")
+        set_property (TARGET Foundation PROPERTY INTERFACE_LINK_LIBRARIES "")
+    endif ()
 endif ()
 
 if (MSVC)

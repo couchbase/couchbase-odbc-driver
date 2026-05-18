@@ -167,6 +167,18 @@ include (cmake/arch.cmake)
 include (cmake/sanitize.cmake)
 
 find_package (Threads REQUIRED)
+
+# On macOS, avoid Conda's unixODBC include dir shadowing Homebrew ICU headers.
+if (APPLE AND NOT ODBC_CONFIG_SCRIPT)
+    find_program (_brew_odbc_config odbc_config HINTS /opt/homebrew/bin /usr/local/bin NO_DEFAULT_PATH)
+    if (_brew_odbc_config)
+        set (ODBC_CONFIG_SCRIPT "${_brew_odbc_config}")
+        set (ODBC_PROVIDER "UnixODBC")
+    endif ()
+    unset (_brew_odbc_config CACHE)
+    unset (_brew_odbc_config)
+endif ()
+
 find_package (ODBC REQUIRED)
 
 if (CH_ODBC_USE_ICU)

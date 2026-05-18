@@ -1,5 +1,34 @@
 # Dev Setup for Mac
 
+## Build Quick Reference (macOS and Windows)
+
+### macOS
+
+Prerequisites:
+- Homebrew
+- `cmake`
+- `icu4c`
+- `openssl@3`
+- `unixodbc`
+
+Commands:
+- `git submodule update --init --recursive`
+- `cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DICU_ROOT=$(brew --prefix)/opt/icu4c -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)`
+- `cmake --build build -j12`
+
+Built driver artifacts:
+- `build/driver/libcouchbaseodbc.dylib`
+- `build/driver/libcouchbaseodbcw.dylib`
+
+### Windows (x64, Release, MSI)
+
+From a build directory:
+- `cmake -A x64 -DLCB_USE_HDR_HISTOGRAM=OFF -DCMAKE_BUILD_TYPE=Release ..`
+- `cmake --build . --config Release`
+- `cmake --build . --config Release --target package`
+
+This produces the MSI package using the existing packaging target.
+
 ## Setup Driver Manager
 
 Prerequisites:
@@ -38,12 +67,12 @@ Prerequisites:
 
 Steps:
 * If you don't have repo cloned yet, ```git clone --recursive https://github.com/couchbaselabs/couchbase-odbc-driver.git```
-* If you have repo already cloned, then after fetching a patch, run this command: ```cd couchbase-odbc-driver/contrib && git submoudle update --init```
+* If you have repo already cloned, then after fetching a patch, run this command: ```cd couchbase-odbc-driver && git submodule update --init --recursive```
 * ```cd couchbase-odbc-driver```
 * ```mkdir build```
-* ```cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DICU_ROOT=$(brew --prefix)/opt/icu4c -S . -B build```
+* ```cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DICU_ROOT=$(brew --prefix)/opt/icu4c -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3) -S . -B build```
 * ```cd build```
-* ```make```
+* ```make -j12``` (or use ```cmake --build ../build -j12```)
 * ```sudo make install```, this will install _libcouchbaseodbc.dylib_ and _libcouchbaseodbcw.dylib_ in _/usr/local/lib_
 
 
