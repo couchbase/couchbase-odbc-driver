@@ -18,6 +18,10 @@ lcb_STATUS lcb_createopts_destroy(lcb_CREATEOPTS *);
 lcb_STATUS lcb_createopts_connstr(lcb_CREATEOPTS *,const char *,size_t);
 lcb_STATUS lcb_createopts_credentials(lcb_CREATEOPTS *, const char *,size_t , const char *, size_t );
 lcb_STATUS lcb_createopts_tls_key_password(lcb_CREATEOPTS *, const char *, size_t);
+lcb_STATUS lcb_createopts_authenticator(lcb_CREATEOPTS *, lcb_AUTHENTICATOR *);
+lcb_AUTHENTICATOR * lcbauth_new(void);
+lcb_STATUS lcbauth_set_jwt(lcb_AUTHENTICATOR *, const char *, size_t);
+void lcbauth_unref(lcb_AUTHENTICATOR *);
 }
 
 std::string GenerateSessionId() {
@@ -188,19 +192,49 @@ void Connection::connect(const std::string & connection_string) {
     lcb_CREATEOPTS * lcb_create_options = NULL;
     lcb_createopts_create(&lcb_create_options, LCB_TYPE_CLUSTER);
     lcb_createopts_connstr(lcb_create_options, conn_str.c_str(), conn_str.length());
-    lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
 
-    if (Poco::UTF8::icompare(auth_mode, "certificate") == 0 && !client_key_password.empty()) {
-        lcb_createopts_tls_key_password(lcb_create_options, client_key_password.c_str(), client_key_password.length());
+    // Kept alive until after lcb_create() clones it via lcbauth_clone().
+    lcb_AUTHENTICATOR * jwt_auth = nullptr;
+
+    if (Poco::UTF8::icompare(auth_mode, INI_AUTH_MODE_JWT) == 0) {
+        if (jwt_token.empty()) {
+            lcb_createopts_destroy(lcb_create_options);
+            throw std::runtime_error("JWT auth mode requires a JWT token (connection string key: JWT)");
+        }
+        if (!connectInSSLMode) {
+            lcb_createopts_destroy(lcb_create_options);
+            throw std::runtime_error("JWT authentication requires TLS.");
+        }
+        jwt_auth = lcbauth_new();
+        lcb_STATUS jwt_err = lcbauth_set_jwt(jwt_auth, jwt_token.c_str(), jwt_token.length());
+        if (jwt_err != LCB_SUCCESS) {
+            lcbauth_unref(jwt_auth);
+            lcb_createopts_destroy(lcb_create_options);
+            throw std::runtime_error(std::string("Failed to set JWT token: ") + lcb_strerror_short(jwt_err));
+        }
+        lcb_createopts_authenticator(lcb_create_options, jwt_auth);
+        // Do NOT unref here, lcb_create() calls lcbauth_clone internally.
+        // jwt_auth is unref'd below after lcb_create() returns.
+    } else {
+        lcb_createopts_credentials(lcb_create_options, cb_username, strlen(cb_username), cb_password, strlen(cb_password));
+        if (Poco::UTF8::icompare(auth_mode, INI_AUTH_MODE_CERT) == 0 && !client_key_password.empty()) {
+            lcb_createopts_tls_key_password(lcb_create_options, client_key_password.c_str(), client_key_password.length());
+        }
     }
 
     try {
         cb_check(lcb_create(&lcb_instance, lcb_create_options), "create couchbase handle");
     } catch (std::exception & ex) {
+        if (jwt_auth) lcbauth_unref(jwt_auth);
         lcb_createopts_destroy(lcb_create_options);
         // lcb_create failed before opening console_log_file; write diagnostics ourselves
         logConnectionParams(conn_str);
         throw std::runtime_error(ex.what());
+    }
+    // lcb_create cloned the auth into settings; release our reference now.
+    if (jwt_auth) {
+        lcbauth_unref(jwt_auth);
+        jwt_auth = nullptr;
     }
     lcb_createopts_destroy(lcb_create_options);
     cb_check(lcb_connect(lcb_instance), "schedule connection");
@@ -241,6 +275,7 @@ void Connection::logConnectionParams(const std::string& conn_str) {
     std::cout << "\nLOG: advanced_params is :-> " << advanced_params;
     std::cout << "\nLOG: certificate_file path is :-> " << certificate_file;
     std::cout << "\nLOG: client key passphrase length is :-> " << client_key_password.length();
+    std::cout << "\nLOG: jwt_token length is :-> " << jwt_token.length();
     std::cout << "\nLOG: lcb connection string is :-> " << conn_str;
     std::cout << "\nLOG: --- End driver diagnostics ---" << std::endl;
 }
@@ -271,6 +306,7 @@ void Connection::resetConfiguration() {
     client_cert.clear();
     client_key.clear();
     client_key_password.clear();
+    jwt_token.clear();
 }
 
 void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_value_map_t & dsn_fields) {
@@ -460,9 +496,17 @@ void Connection::setConfiguration(const key_value_map_t & cs_fields, const key_v
             recognized_key = true;
             valid_value = (Poco::UTF8::icompare(value, INI_AUTH_MODE_BASIC) == 0 ||
                            Poco::UTF8::icompare(value, INI_AUTH_MODE_CERT) == 0 ||
-                           Poco::UTF8::icompare(value, INI_AUTH_MODE_LDAP) == 0);
+                           Poco::UTF8::icompare(value, INI_AUTH_MODE_LDAP) == 0 ||
+                           Poco::UTF8::icompare(value, INI_AUTH_MODE_JWT) == 0);
             if (valid_value) {
                 auth_mode = value;
+            }
+        }
+        else if (Poco::UTF8::icompare(key, INI_JWT_TOKEN) == 0) {
+            recognized_key = true;
+            valid_value = true;
+            if (valid_value) {
+                jwt_token = value;
             }
         }
         else if (Poco::UTF8::icompare(key, INI_CLIENT_CERT) == 0) {

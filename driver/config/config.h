@@ -42,6 +42,7 @@ struct ConnInfo {
     std::string client_key;
     std::string advanced_params;
     std::string client_key_password;
+    std::string jwt_token;
 };
 
 void readDSNinfo(ConnInfo * ci, bool overwrite);

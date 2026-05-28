@@ -18,7 +18,7 @@ set(LCB_BUILD_STATIC 1 CACHE INTERNAL "" FORCE)
 
 cbdep_install(PACKAGE openssl VERSION ${OPENSSL_VERSION})
 set(OPENSSL_ROOT_DIR "${CMAKE_CURRENT_BINARY_DIR}/openssl-${OPENSSL_VERSION}")
-add_subdirectory (libcouchbase)
+add_subdirectory (libcouchbase-odbc)
 
 if (CH_ODBC_PREFER_BUNDLED_POCO OR NOT Poco_FOUND)
     if (NOT Poco_FOUND AND NOT CH_ODBC_PREFER_BUNDLED_POCO)

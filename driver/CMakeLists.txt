@@ -154,8 +154,8 @@ endif ()
 target_include_directories (${libname}-impl
     PUBLIC ${PROJECT_BINARY_DIR}
     PUBLIC ${PROJECT_SOURCE_DIR}
-    PUBLIC ${PROJECT_SOURCE_DIR}/contrib/libcouchbase/include
-    PUBLIC ${PROJECT_BINARY_DIR}/contrib/libcouchbase/generated
+    PUBLIC ${PROJECT_SOURCE_DIR}/contrib/libcouchbase-odbc/include
+    PUBLIC ${PROJECT_BINARY_DIR}/contrib/libcouchbase-odbc/generated
 )
 
 set (_poco_net Poco::Net)

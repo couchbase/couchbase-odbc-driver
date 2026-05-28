@@ -32,6 +32,7 @@ private:
     std::string client_cert;
     std::string client_key;
     std::string client_key_password;
+    std::string jwt_token;
     std::string ca_location;
     std::string path;
     std::string default_format;

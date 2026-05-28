@@ -43,6 +43,8 @@
 #define INI_AUTH_MODE_CERT              "certificate"
 #define INI_AUTH_MODE_BASIC             "basic"
 #define INI_AUTH_MODE_LDAP              "ldap"
+#define INI_AUTH_MODE_JWT               "jwt"
+#define INI_JWT_TOKEN                   "JWT"
 #define INI_CLIENT_KEY_PASSWORD         "ClientKeyPassword"
 
 #if defined(UNICODE)
@@ -72,6 +74,7 @@
 #define INI_ADVANCED_PARAMS_DEFAULT         ""
 #define INI_CERTIFICATEFILE_DEFAULT         ""
 #define INI_CLIENT_KEY_PASSWORD_DEFAULT     ""
+#define INI_JWT_TOKEN_DEFAULT               ""
 #define INI_DATABASE_DEFAULT                ""
 #define INI_SCOPE_DEFAULT                   ""
 

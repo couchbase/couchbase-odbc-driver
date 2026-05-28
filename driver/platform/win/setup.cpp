@@ -262,10 +262,12 @@ void UpdateAuthVisibility(HWND hdlg, int authMode) {
     // 1 = LDAP
     // 2 = Client Cert
     // 3 = Client Cert + Encrypted Key
+    // 4 = JWT
 
     bool showBasic = (authMode == 0 || authMode == 1);
     bool showCert  = (authMode == 2 || authMode == 3);
     bool showPass  = (authMode == 3);
+    bool isJwt     = (authMode == 4);
 
     int basicCmd = showBasic ? SW_SHOW : SW_HIDE;
     int certCmd  = showCert  ? SW_SHOW : SW_HIDE;
@@ -286,6 +288,18 @@ void UpdateAuthVisibility(HWND hdlg, int authMode) {
     // Encrypted Key Password Field
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD), passCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD_LABEL), passCmd);
+
+    // JWT: force TLS on (JWT requires TLS), lock SSL dropdown, always show cert file
+    HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
+    if (isJwt) {
+        SendMessage(hSSLMode, CB_SETCURSEL, 1, 0); // force "Enable"
+        EnableWindow(hSSLMode, FALSE);
+        ToggleCertificateVisibility(hdlg, true);
+    } else {
+        EnableWindow(hSSLMode, TRUE);
+        int sslIdx = SendMessage(hSSLMode, CB_GETCURSEL, 0, 0);
+        ToggleCertificateVisibility(hdlg, sslIdx == 1);
+    }
 }
 
 inline INT_PTR ConfigDlgProc_(
@@ -317,20 +331,19 @@ inline INT_PTR ConfigDlgProc_(
 
             // Setup Auth Dropdown
             HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
-            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Basic")); // Index 0
-            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("LDAP")); // Index 1
-            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate")); // Index 2
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Basic"));                             // Index 0
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("LDAP"));                              // Index 1
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate"));               // Index 2
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate (Encrypted Key)")); // Index 3
+            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("JWT"));                              // Index 4
 
             // Determine initial selection based on config
             int initialAuth = 0;
-            if (Poco::UTF8::icompare(ci.auth_mode, "certificate") == 0) {
-                if (!ci.client_key_password.empty()) {
-                    initialAuth = 3;
-                } else {
-                    initialAuth = 2;
-                }
-            } else if (Poco::UTF8::icompare(ci.auth_mode, "ldap") == 0) {
+            if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_JWT) == 0) {
+                initialAuth = 4;
+            } else if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_CERT) == 0) {
+                initialAuth = ci.client_key_password.empty() ? 2 : 3;
+            } else if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_LDAP) == 0) {
                 initialAuth = 1;
             }
             SendMessage(hAuth, CB_SETCURSEL, initialAuth, 0);
@@ -391,12 +404,15 @@ inline INT_PTR ConfigDlgProc_(
         }
 
         case WM_COMMAND: {
-            // [CALL 2] Handle Dropdown Change Event
+            // [CALL 2] Handle SSL dropdown change — skip when JWT is active (SSL is locked)
             if (LOWORD(wParam) == IDC_SSLMODE && HIWORD(wParam) == CBN_SELCHANGE) {
-                HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
-                int selectedIndex = SendMessage(hSSLMode, CB_GETCURSEL, 0, 0);
-                // Index 1 is "Enable"
-                ToggleCertificateVisibility(hdlg, selectedIndex == 1);
+                HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
+                int authIdx = SendMessage(hAuth, CB_GETCURSEL, 0, 0);
+                if (authIdx != 4) { // not JWT
+                    HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
+                    int selectedIndex = SendMessage(hSSLMode, CB_GETCURSEL, 0, 0);
+                    ToggleCertificateVisibility(hdlg, selectedIndex == 1);
+                }
                 return TRUE;
             }
             switch (const DWORD cmd = LOWORD(wParam)) {
@@ -423,12 +439,15 @@ inline INT_PTR ConfigDlgProc_(
                     // Save Auth Mode
                     HWND hAuth = GetDlgItem(hdlg, IDC_AUTH_MODE);
                     int authIdx = SendMessage(hAuth, CB_GETCURSEL, 0, 0);
-                    if (authIdx == 2 || authIdx == 3) {
-                        ci.auth_mode = "certificate";
+                    if (authIdx == 4) {
+                        ci.auth_mode = INI_AUTH_MODE_JWT;
+                        ci.sslmode   = "1"; // JWT requires TLS — enforce it
+                    } else if (authIdx == 2 || authIdx == 3) {
+                        ci.auth_mode = INI_AUTH_MODE_CERT;
                     } else if (authIdx == 1) {
-                        ci.auth_mode = "ldap";
+                        ci.auth_mode = INI_AUTH_MODE_LDAP;
                     } else {
-                        ci.auth_mode = "basic";
+                        ci.auth_mode = INI_AUTH_MODE_BASIC;
                     }
 
                     std::basic_string<CharTypeLPCTSTR> value;
