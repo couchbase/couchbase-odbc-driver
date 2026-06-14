@@ -19,6 +19,37 @@
 
 set (ODBC_MDAC_FOUND TRUE)
 
+# CMake 4.0+ no longer searches INCLUDE/LIB env vars in find_path/find_library.
+# Derive Windows SDK paths from CMAKE_MT which the Visual Studio generator sets
+# (e.g. C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/mt.exe).
+set (_winsdk_include_hint)
+set (_winsdk_lib_hint)
+set (_msvc_lib_hint)
+if (CMAKE_MT)
+    string (REGEX REPLACE "/bin/[^/]+/[^/]+/mt\\.exe$" "" _winsdk_root "${CMAKE_MT}")
+    string (REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" _winsdk_version "${CMAKE_MT}")
+    if (_winsdk_root AND _winsdk_version)
+        set (_winsdk_include_hint "${_winsdk_root}/Include/${_winsdk_version}/um")
+        if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set (_winsdk_lib_hint "${_winsdk_root}/Lib/${_winsdk_version}/um/x64")
+        else ()
+            set (_winsdk_lib_hint "${_winsdk_root}/Lib/${_winsdk_version}/um/x86")
+        endif ()
+    endif ()
+endif ()
+# legacy_stdio_definitions lives in the MSVC toolchain lib dir, not the Windows SDK.
+# Derive it from CMAKE_LINKER: .../MSVC/<ver>/bin/Host<arch>/<arch>/link.exe -> .../MSVC/<ver>/lib/<arch>
+if (CMAKE_LINKER)
+    string (REGEX REPLACE "/bin/Host[^/]+/[^/]+/link\\.exe$" "" _msvc_root "${CMAKE_LINKER}")
+    if (_msvc_root)
+        if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set (_msvc_lib_hint "${_msvc_root}/lib/x64")
+        else ()
+            set (_msvc_lib_hint "${_msvc_root}/lib/x86")
+        endif ()
+    endif ()
+endif ()
+
 foreach (_role_lc app driver)
     if (NOT WIN32)
         set (ODBC_MDAC_FOUND FALSE)
@@ -60,6 +91,7 @@ foreach (_role_lc app driver)
         else ()
             find_path (_path
                 NAMES "${_file}"
+                HINTS "${_winsdk_include_hint}"
             )
         endif ()
 
@@ -86,6 +118,7 @@ foreach (_role_lc app driver)
         else ()
             find_library (_path
                 NAMES "${_file}"
+                HINTS "${_winsdk_lib_hint}" "${_msvc_lib_hint}"
             )
         endif ()
 
@@ -104,6 +137,12 @@ unset (_path)
 unset (_file)
 unset (_libs)
 unset (_headers)
+unset (_winsdk_include_hint)
+unset (_winsdk_lib_hint)
+unset (_winsdk_root)
+unset (_winsdk_version)
+unset (_msvc_lib_hint)
+unset (_msvc_root)
 
 if (ODBC_MDAC_FOUND)
     foreach (_role_uc APP DRIVER)
