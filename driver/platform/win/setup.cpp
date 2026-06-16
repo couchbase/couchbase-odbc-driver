@@ -315,6 +315,14 @@ inline INT_PTR ConfigDlgProc_(
 
             SetWindowLongPtr(hdlg, DWLP_USER, lParam);
             CenterDialog(hdlg); /* Center dialog */
+
+            switch (lpsetupdlg.source_type) {
+                case 1: SetWindowText(hdlg, TEXT("Create DSN for Analytics Service on Capella Operational")); break;
+                case 2: SetWindowText(hdlg, TEXT("Create DSN for Capella Analytics")); break;
+                case 3: SetWindowText(hdlg, TEXT("Create DSN for Analytics Service on Couchbase Server")); break;
+                case 4: SetWindowText(hdlg, TEXT("Create DSN for Enterprise Analytics")); break;
+            }
+
             readDSNinfo(&ci, false);
 
             std::basic_string<CharTypeLPCTSTR> value;
