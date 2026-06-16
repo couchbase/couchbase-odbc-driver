@@ -289,9 +289,13 @@ void UpdateAuthVisibility(HWND hdlg, int authMode) {
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD), passCmd);
     ShowWindow(GetDlgItem(hdlg, IDC_CLIENT_KEY_PASSWORD_LABEL), passCmd);
 
-    // JWT: force TLS on (JWT requires TLS), lock SSL dropdown, always show cert file
+    // JWT and Client Cert modes: force TLS on and lock SSL dropdown
     HWND hSSLMode = GetDlgItem(hdlg, IDC_SSLMODE);
     if (isJwt) {
+        SendMessage(hSSLMode, CB_SETCURSEL, 1, 0); // force "Enable"
+        EnableWindow(hSSLMode, FALSE);
+        ToggleCertificateVisibility(hdlg, true);
+    } else if (showCert) {
         SendMessage(hSSLMode, CB_SETCURSEL, 1, 0); // force "Enable"
         EnableWindow(hSSLMode, FALSE);
         ToggleCertificateVisibility(hdlg, true);
@@ -455,6 +459,7 @@ inline INT_PTR ConfigDlgProc_(
                         ci.sslmode   = "1"; // JWT requires TLS — enforce it
                     } else if (authIdx == 2 || authIdx == 3) {
                         ci.auth_mode = INI_AUTH_MODE_CERT;
+                        ci.sslmode   = "1"; // Client Certificate requires TLS — enforce it
                     } else if (authIdx == 1) {
                         ci.auth_mode = INI_AUTH_MODE_LDAP;
                     } else {
