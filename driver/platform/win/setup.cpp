@@ -335,12 +335,15 @@ inline INT_PTR ConfigDlgProc_(
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("LDAP"));                              // Index 1
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate"));               // Index 2
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate (Encrypted Key)")); // Index 3
-            SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("JWT"));                              // Index 4
+            bool isEnterpriseAnalytics = (lpsetupdlg.source_type == 4);
+            if (isEnterpriseAnalytics) {
+                SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("JWT"));                          // Index 4
+            }
 
             // Determine initial selection based on config
             int initialAuth = 0;
             if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_JWT) == 0) {
-                initialAuth = 4;
+                initialAuth = isEnterpriseAnalytics ? 4 : 0;
             } else if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_CERT) == 0) {
                 initialAuth = ci.client_key_password.empty() ? 2 : 3;
             } else if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_LDAP) == 0) {
