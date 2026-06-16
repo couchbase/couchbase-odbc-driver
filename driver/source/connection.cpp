@@ -143,6 +143,13 @@ void Connection::connect(const std::string & connection_string) {
         if(collect_logs){
             // lcb logs (fresh per connection: lcb truncates this file on lcb_create)
             log_file = getLcbLogPath();
+            // Percent-encode the path for the LCB URL connection string.
+            // Without this, spaces in "Power BI Desktop\Custom Connectors" break LCB's URL parser.
+            if (!log_file.empty()) {
+                std::string encoded;
+                Poco::URI::encode(log_file, " #&", encoded);
+                log_file = encoded;
+            }
             // std::cout throughout the connection lifetime is captured
             diag_log_file = getDriverDiagLogPath();
             if(!diag_log_file.empty() && !outFile.is_open()){
@@ -795,7 +802,8 @@ void Connection::build_conn_str_capella(std::string& conn_str) {
     ss << url;
 
     if (collect_logs && !log_file.empty()) {
-        ss << "?console_log_level=" << log_level
+        bool urlHasQuery = (url.find('?') != std::string::npos);
+        ss << (urlHasQuery ? "&" : "?") << "console_log_level=" << log_level
            << "&console_log_file=" << log_file;
     }
 
@@ -816,7 +824,7 @@ void Connection::build_conn_str_on_prem_without_ssl(std::string& conn_str) {
     appendAdvancedParams(ss, advanced_params, hasQuery);
 
     if (collect_logs && !log_file.empty()) {
-        ss << "?console_log_level=" << log_level
+        ss << (hasQuery ? "&" : "?") << "console_log_level=" << log_level
            << "&console_log_file=" << log_file;
     }
 
