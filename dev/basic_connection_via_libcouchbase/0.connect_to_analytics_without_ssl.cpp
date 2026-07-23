@@ -44,7 +44,7 @@ int main() {
     std::string username;
     std::cin>>username;
 
-    std::cout << "Enter the passworde: ";
+    std::cout << "Enter the password: ";
     std::string password;
     std::cin>>password;
 
@@ -78,16 +78,16 @@ int main() {
     // DIAGNOSTIC CODE: Inspect SDK's internal configuration
     std::cout << "\n========== DIAGNOSTIC INFORMATION ==========" << std::endl;
     std::cout << "Network setting: external (from connection string)" << std::endl;
-    
+
     // Get vbucket config
     lcbvb_CONFIG *vbc = nullptr;
     lcb_cntl(instance, LCB_CNTL_GET, LCB_CNTL_VBCONFIG, &vbc);
-    
+
     if (vbc) {
         unsigned nservers = lcbvb_get_nservers(vbc);
         std::cout << "Number of servers in config: " << nservers << std::endl;
         std::cout << "Config revision: " << lcbvb_get_revision(vbc) << std::endl;
-        
+
         // Check all service ports for each node to see if alternate addresses are working
         std::cout << "\n--- Service Ports (PLAIN mode) for Node 0 ---" << std::endl;
         for (unsigned i = 0; i < nservers; i++) {
@@ -95,18 +95,18 @@ int main() {
             unsigned mgmt_port = lcbvb_get_port(vbc, i, LCBVB_SVCTYPE_MGMT, LCBVB_SVCMODE_PLAIN);
             unsigned cbas_port = lcbvb_get_port(vbc, i, LCBVB_SVCTYPE_ANALYTICS, LCBVB_SVCMODE_PLAIN);
             unsigned kv_port = lcbvb_get_port(vbc, i, LCBVB_SVCTYPE_DATA, LCBVB_SVCMODE_PLAIN);
-            
+
             std::cout << "Node " << i << " (" << (hostname ? hostname : "unknown") << "):" << std::endl;
             std::cout << "  Management port: " << (mgmt_port > 0 ? std::to_string(mgmt_port) : "NOT FOUND") << std::endl;
             std::cout << "  Analytics port (cbas): " << (cbas_port > 0 ? std::to_string(cbas_port) : "NOT FOUND") << std::endl;
             std::cout << "  KV port (data): " << (kv_port > 0 ? std::to_string(kv_port) : "NOT FOUND") << std::endl;
-            
+
             const char *cbas_hostport = lcbvb_get_hostport(vbc, i, LCBVB_SVCTYPE_ANALYTICS, LCBVB_SVCMODE_PLAIN);
             const char *cbas_resturl = lcbvb_get_resturl(vbc, i, LCBVB_SVCTYPE_ANALYTICS, LCBVB_SVCMODE_PLAIN);
             std::cout << "  Analytics hostport: " << (cbas_hostport ? cbas_hostport : "NULL") << std::endl;
             std::cout << "  Analytics REST URL: " << (cbas_resturl ? cbas_resturl : "NULL") << std::endl;
         }
-        
+
         // Try to find a random Analytics node
         std::cout << "\n--- Finding Analytics Node ---" << std::endl;
         int rand_ix = lcbvb_get_randhost(vbc, LCBVB_SVCTYPE_ANALYTICS, LCBVB_SVCMODE_PLAIN);
@@ -145,17 +145,6 @@ int main() {
 
 
 /*
-Step 1: command to compile:
-g++ -std=c++17 0.connect_to_analytics_without_ssl.cpp -o prog \
-  -I/opt/homebrew/opt/libcouchbase/include \
-  -L/opt/homebrew/opt/libcouchbase/lib \
-  -lcouchbase
-
-Step 2:  command to run:
-./prog
-
-Step 3: give inputs -> host, port, username and password
-
 Expected Output example
 ------------------------------------------------
 LOG: Connection String -> couchbase://localhost:11210
@@ -164,10 +153,4 @@ LOG: Connection String -> couchbase://localhost:11210
 Executing: select 1;...
 Result: {"$1":1}
 :white_check_mark: Query Completed.
-
-
-In case of error, set the logging:
-export LCB_LOGLEVEL=5 -> from the terminal
-
-rerun the program
 */

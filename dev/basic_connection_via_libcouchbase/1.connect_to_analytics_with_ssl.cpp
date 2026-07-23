@@ -101,17 +101,6 @@ int main() {
 
 
 /*
-Step 1: command to compile:
-g++ -std=c++17 1.connect_to_analytics_with_ssl.cpp -o prog \
-  -I/opt/homebrew/opt/libcouchbase/include \
-  -L/opt/homebrew/opt/libcouchbase/lib \
-  -lcouchbase
-
-Step 2:  command to run:
-./prog
-
-Step 3: give inputs -> host, port, certificate path, username and password
-
 Expected Output example
 ------------------------------------------------
 LOG: Connection String -> couchbases://localhost:11998?truststorepath=/Users/janhavi.tripurwar/Desktop/cert.txt
@@ -120,14 +109,4 @@ LOG: Connection String -> couchbases://localhost:11998?truststorepath=/Users/jan
 Executing: select 1;...
 Result: {"$1":1}
 :white_check_mark: Query Completed.
-
-
-In case of error, set the logging:
-export LCB_LOGLEVEL=5 -> from the terminal
-
-
-Check what ports are mapped to using http://localhost:8091/pools/default/nodeServices
-or
-http://localhost:9000/pools/default/nodeServices
-rerun the program
 */

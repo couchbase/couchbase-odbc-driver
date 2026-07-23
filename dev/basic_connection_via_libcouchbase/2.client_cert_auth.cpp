@@ -86,16 +86,6 @@ int main() {
 
 
 /*
-Step 1: command to compile:
-g++ -std=c++17 2.client_cert_auth.cpp -o prog \
-  -I/opt/homebrew/opt/libcouchbase/include \
-  -L/opt/homebrew/opt/libcouchbase/lib \
-  -lcouchbase
-
-Step 2:  command to compile:
-./prog
-
-
 Expected Output example
 ------------------------------------------------
 LOG: Connection String -> couchbases://localhost:11307?truststorepath=/Users/janhavi.tripurwar/Desktop/certs/server_ca.pem&certpath=/Users/janhavi.tripurwar/Desktop/certs/user.pem&keypath=/Users/janhavi.tripurwar/Desktop/certs/user.key
@@ -104,14 +94,4 @@ LOG: Connection String -> couchbases://localhost:11307?truststorepath=/Users/jan
 Executing: select * from `travel-sample`.inventory.landmark limit 1;...
 Result: ...
 :white_check_mark: Query Completed.
-
-
-In case of error, set the logging:
-export LCB_LOGLEVEL=5 -> from the terminal
-
-
-Check what ports are mapped to using http://localhost:8091/pools/default/nodeServices
-or
-http://localhost:9000/pools/default/nodeServices
-rerun the program
 */
