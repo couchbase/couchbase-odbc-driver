@@ -20,7 +20,7 @@
 #define INI_HOST                        "Host"
 #define INI_TIMEOUT                     "Timeout"         /* Connection timeout */
 #define INI_VERIFY_CONNECTION_EARLY     "VerifyConnectionEarly"
-#define INI_SSLMODE                     "SSLMode"         /* Use 'require' for https connections */
+#define INI_SSLMODE                     "SSLMode"         /* Enable TLS. Boolean: 1/0, yes/no, true/false, on/off */
 #define INI_PRIVATEKEYFILE              "PrivateKeyFile"
 #define INI_CERTIFICATEFILE             "CertificateFile"
 #define INI_CALOCATION                  "CALocation"
