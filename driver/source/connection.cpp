@@ -42,6 +42,7 @@ Connection::~Connection() {
     // Restore std::cout if it was redirected to the diag file
     if (coutBuffer) {
         std::cout.rdbuf(coutBuffer);
+        std::cout.unsetf(std::ios::unitbuf);
         coutBuffer = nullptr;
     }
     if (outFile.is_open()) {
@@ -157,6 +158,8 @@ void Connection::connect(const std::string & connection_string) {
                 if(outFile.is_open()){
                     coutBuffer = std::cout.rdbuf();
                     std::cout.rdbuf(outFile.rdbuf());
+                    // Flush every write so a crash mid-connect doesn't lose the tail of the log.
+                    std::cout.setf(std::ios::unitbuf);
                 }
             }
         }
