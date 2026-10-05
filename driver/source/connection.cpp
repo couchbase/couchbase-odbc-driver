@@ -776,20 +776,30 @@ std::string Connection::handleNativeSql(const std::string & q) {
 
 void Connection::build_conn_str_on_prem_ssl(std::string& conn_str) {
     std::stringstream ss;
-    ss << "couchbases://" << server << "?truststorepath=" << certificate_file;
+    ss << "couchbases://" << server;
 
+    // Omit truststorepath when not set, so the SDK falls back to its
+    // default trust anchors; an empty value fails connspec parsing.
+    bool hasQuery = false;
+    if (!certificate_file.empty()) {
+        ss << "?truststorepath=" << certificate_file;
+        hasQuery = true;
+    }
+
+    // Both are always emitted, so a missing one fails fast rather than
+    // silently connecting without a client certificate.
     if (Poco::UTF8::icompare(auth_mode, "certificate") == 0) {
-        ss << "&certpath=" << client_cert;
-        ss << "&keypath=" << client_key;
+        ss << (hasQuery ? "&" : "?") << "certpath=" << client_cert << "&keypath=" << client_key;
+        hasQuery = true;
     }
     if (Poco::UTF8::icompare(auth_mode, "ldap") == 0) {
-        ss << "&sasl_mech_force=PLAIN";
+        ss << (hasQuery ? "&" : "?") << "sasl_mech_force=PLAIN";
+        hasQuery = true;
     }
-    bool hasQuery = true; // we already have ?truststorepath
     appendAdvancedParams(ss, advanced_params, hasQuery);
 
     if (collect_logs && !log_file.empty()) {
-        ss << "&console_log_level=" << log_level
+        ss << (hasQuery ? "&" : "?") << "console_log_level=" << log_level
            << "&console_log_file=" << log_file;
     }
 
