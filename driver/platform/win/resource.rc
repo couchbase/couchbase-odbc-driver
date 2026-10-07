@@ -56,8 +56,8 @@ CAPTION "Create data source for Couchbase"
 FONT 11, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     LTEXT   "Select the Couchbase source to connect to:",IDC_STATIC,10,10,200,8
-    CONTROL "Enterprise Analytics", IDC_RADIO_ENT_ANALYTICS, "Button", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 10, 30, 200, 10
-    CONTROL "Capella Analytics", IDC_RADIO_CAPELLA_ANALYTICS, "Button", BS_AUTORADIOBUTTON, 10, 50, 200, 10
+    CONTROL "Operational Insights Enterprise", IDC_RADIO_OP_INSIGHTS, "Button", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 10, 30, 200, 10
+    CONTROL "Operational Insights Capella", IDC_RADIO_CAPELLA_ANALYTICS, "Button", BS_AUTORADIOBUTTON, 10, 50, 200, 10
     CONTROL "Couchbase Server (Analytics Service)", IDC_RADIO_CB_SERVER, "Button", BS_AUTORADIOBUTTON, 10, 70, 200, 10
     CONTROL "Capella Operational (Analytics Service)", IDC_RADIO_CAPELLA_OPS, "Button", BS_AUTORADIOBUTTON, 10, 90, 200, 10
 

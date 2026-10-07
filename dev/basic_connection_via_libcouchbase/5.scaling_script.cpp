@@ -1,4 +1,4 @@
-// This is a simple program that connects to couchbase analytics/ enterprise analytics WITHOUT SSL
+// This is a simple program that connects to couchbase analytics/ operational insights WITHOUT SSL
 // and runs a query every 10 seconds.
 #include <libcouchbase/couchbase.h>
 #include <iostream>

@@ -41,7 +41,7 @@ struct SetupDialogData {
     std::string dsn;         /// Original data source name
     bool is_new_dsn;         /// New data source flag
     bool is_default;         /// Default data source flag
-    int source_type;         // 0: Unknown, 1: Capella Ops, 2: Capella Analytics, 3: CB Server, 4: Ent Analytics
+    int source_type;         // 0: Unknown, 1: Capella Ops, 2: Operational Insights Capella, 3: CB Server, 4: Operational Insights Enterprise
     ConnInfo ci;
 
      // Member function to get LPARAM
@@ -53,9 +53,9 @@ struct SetupDialogData {
 void ConfigureScopeUI(HWND hdlg, int sourceType, const std::string& catalog) {
     // sourceType:
     // 1: Capella Ops (Scope only)
-    // 2: Capella Analytics (Database + Optional Scope)
+    // 2: Operational Insights Capella (Database + Optional Scope)
     // 3: CB Server (Scope only)
-    // 4: Ent Analytics (Database + Optional Scope)
+    // 4: Operational Insights Enterprise (Database + Optional Scope)
 
     bool isDatabaseMode = (sourceType == 2 || sourceType == 4);
 
@@ -322,9 +322,9 @@ inline INT_PTR ConfigDlgProc_(
 
             switch (lpsetupdlg.source_type) {
                 case 1: SetWindowText(hdlg, TEXT("Create DSN for Analytics Service on Capella Operational")); break;
-                case 2: SetWindowText(hdlg, TEXT("Create DSN for Capella Analytics")); break;
+                case 2: SetWindowText(hdlg, TEXT("Create DSN for Operational Insights Capella")); break;
                 case 3: SetWindowText(hdlg, TEXT("Create DSN for Analytics Service on Couchbase Server")); break;
-                case 4: SetWindowText(hdlg, TEXT("Create DSN for Enterprise Analytics")); break;
+                case 4: SetWindowText(hdlg, TEXT("Create DSN for Operational Insights Enterprise")); break;
             }
 
             readDSNinfo(&ci, false);
@@ -347,15 +347,15 @@ inline INT_PTR ConfigDlgProc_(
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("LDAP"));                              // Index 1
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate"));               // Index 2
             SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("Client Certificate (Encrypted Key)")); // Index 3
-            bool isEnterpriseAnalytics = (lpsetupdlg.source_type == 4);
-            if (isEnterpriseAnalytics) {
+            bool isOperationalInsights = (lpsetupdlg.source_type == 4);
+            if (isOperationalInsights) {
                 SendMessage(hAuth, CB_ADDSTRING, 0, (LPARAM)TEXT("JWT"));                          // Index 4
             }
 
             // Determine initial selection based on config
             int initialAuth = 0;
             if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_JWT) == 0) {
-                initialAuth = isEnterpriseAnalytics ? 4 : 0;
+                initialAuth = isOperationalInsights ? 4 : 0;
             } else if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_CERT) == 0) {
                 initialAuth = ci.client_key_password.empty() ? 2 : 3;
             } else if (Poco::UTF8::icompare(ci.auth_mode, INI_AUTH_MODE_LDAP) == 0) {
@@ -538,7 +538,7 @@ inline INT_PTR ConfigDlgProc_(
                     bool capella_ops = IsDlgButtonChecked(hdlg, IDC_RADIO_CAPELLA_OPS) == BST_CHECKED;
                     bool capella_analytics = IsDlgButtonChecked(hdlg, IDC_RADIO_CAPELLA_ANALYTICS) == BST_CHECKED;
                     bool cb_server = IsDlgButtonChecked(hdlg, IDC_RADIO_CB_SERVER) == BST_CHECKED;
-                    bool ent_analytics = IsDlgButtonChecked(hdlg, IDC_RADIO_ENT_ANALYTICS) == BST_CHECKED;
+                    bool op_insights = IsDlgButtonChecked(hdlg, IDC_RADIO_OP_INSIGHTS) == BST_CHECKED;
 
                     int MAKEINTRESOURCE_VALUE = IDD_NONE_DIALOG;
 
@@ -556,7 +556,7 @@ inline INT_PTR ConfigDlgProc_(
                         MAKEINTRESOURCE_VALUE = IDD_COUCHBASE_SERVER_DIALOG;
                         ci.connect_to_capella = "no";
                         lpsetupdlg.source_type = 3;
-                    } else if (ent_analytics) {
+                    } else if (op_insights) {
                         MAKEINTRESOURCE_VALUE = IDD_COUCHBASE_SERVER_DIALOG;
                         ci.connect_to_capella = "no";
                         lpsetupdlg.source_type = 4;

@@ -1,4 +1,4 @@
-//This is a simple progran that connects to couchbase analytics/ enterprise analytics WITH client
+//This is a simple progran that connects to couchbase analytics/ operational insights WITH client
 // cert auth with encrypted private keys (file protected with passphrase)
 #include <libcouchbase/couchbase.h>
 #include <iostream>

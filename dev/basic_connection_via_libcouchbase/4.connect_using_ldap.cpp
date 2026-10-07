@@ -1,4 +1,4 @@
-//This is a simple progran that connects to couchbase analytics/ enterprise analytics using LDAP
+//This is a simple progran that connects to couchbase analytics/ operational insights using LDAP
 //doc: https://docs.google.com/document/d/1DkxViLgW-e-Y83oISY5kuy0wPyR36I2G2iLi-b3FjQE/edit?usp=sharing
 
 #include <libcouchbase/couchbase.h>

@@ -1,4 +1,4 @@
-//This is a simple program that connects to couchbase analytics/ enterprise analytics WITH client cert auth
+//This is a simple program that connects to couchbase analytics/ operational insights WITH client cert auth
 #include <libcouchbase/couchbase.h>
 #include <iostream>
 #include <string>

@@ -2,7 +2,7 @@
 
 These standalone programs (`0.*`–`6.*`) exercise libcouchbase directly — the same
 library the ODBC driver uses internally — to reproduce and verify connection /
-service-discovery behaviour against a Couchbase cluster or Enterprise Analytics (EA).
+service-discovery behaviour against a Couchbase cluster or Operational Insights (OI).
 
 > **Important:** build and link against the **bundled** `contrib/libcouchbase-odbc`,
 > *not* the system/homebrew `libcouchbase`. Homebrew ships stock 3.3.x, which lacks

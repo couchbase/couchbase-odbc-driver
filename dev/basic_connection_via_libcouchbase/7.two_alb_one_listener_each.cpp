@@ -1,4 +1,4 @@
-// Connects to Enterprise Analytics through two ALBs with one listener each, and
+// Connects to Operational Insights through two ALBs with one listener each, and
 // optionally stays alive to exercise cluster-map refresh.
 //
 // Topology (see BH/newSetup/ALB-SETUP.md):

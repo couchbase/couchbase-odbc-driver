@@ -1,4 +1,4 @@
-// This is a simple program that connects to couchbase analytics/ enterprise analytics WITHOUT SSL
+// This is a simple program that connects to couchbase analytics/ operational insights WITHOUT SSL
 // This program has better analytics_callback logging, useful when libcouchbase not able to find analytics node.
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/vbucket.h>

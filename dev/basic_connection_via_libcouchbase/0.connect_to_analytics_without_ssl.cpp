@@ -1,4 +1,4 @@
-//This is a simple progran that connects to couchbase analytics/ enterprise analytics WITHOUT SSL
+//This is a simple progran that connects to couchbase analytics/ operational insights WITHOUT SSL
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/vbucket.h>
 #include <iostream>
